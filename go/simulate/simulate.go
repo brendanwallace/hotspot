@@ -9,25 +9,36 @@ import (
 	"time"
 )
 
-type SimulationParameters struct {
-	RiskynessDistribution RiskynessDistribution
-	AlphaC float64
-	AlphaR float64
+// The parameters to run a simulation.
+type Parameters struct {
+	// riskyness distribution parameters: 
+	A, B float64
+	// disease parameters - chance of being infected per contact:
+	AlphaC, AlphaR float64
+	// disease lasts for this long and then the individual recovers:
 	DiseaseLength int
-	R0c float64
-	R0r float64
-	R0 float64
+	// Beta float64
+	// computed instantaneous values:
+	R0c, R0r, R0 float64
+	// Number of individuals:
 	N int
+	// Number of identical simulations to run:
 	Trials int
 }
 
-// Contains all the necessary parameters to run a simulation (so that these
-// are recorded), as well as all the outcomes we mean to measure during the run.
-type SimulationResults struct {
-	Parameters SimulationParameters
+// Measured outcomes from the run(s) as well as parameters.
+type Results struct {
+	Parameters Parameters
 	Infecteds [][]int
+	Susceptibles [][]int
 	FinalRs []int
 	InfectionEvents [][]*InfectionEvent
+	// chance of being infected by risk taker if one takes a risk
+	// at each time step, for each trial
+	RiskyRisks [][]float64
+	// expected number of risky secondary infections (per primary infection)
+	// if p_r = 1, at each time step, for each trial
+	ERtrs [][]float64
 }
 
 
@@ -38,31 +49,6 @@ const (
 	INFECTED
 	RECOVERED
 )
-
-
-type RiskynessDistribution struct {
-	Code string
-
-	// parameters for the beta distribution
-	A, B float64
-}
-
-// this one is a special case so we use a constant to check for it:
-const NORISK = "norisk"
-
-// This is the go way to make a constant slice.
-func getRiskynessDistributions() []RiskynessDistribution {
-	return []RiskynessDistribution{
-		RiskynessDistribution{NORISK, -1, -1},
-		RiskynessDistribution{"uniform", 1, 1},
-		RiskynessDistribution{"uleft", 0.1, 0.2},
-		RiskynessDistribution{"umid", 0.1, 0.1},
-		RiskynessDistribution{"uright", 0.2, 0.1},
-		RiskynessDistribution{"humpleft", 1.5, 3},
-		RiskynessDistribution{"humpmid", 3, 3},
-		RiskynessDistribution{"humpright", 3, 1.5},
-	}
-}
 
 
 // Agent class for the simulation. Each of these represents a Person
@@ -104,12 +90,11 @@ func countStatus(population []*Person, status Status) int {
 }
 
 
-func initializePopulation(population []*Person, param SimulationParameters) {
-
-
+func initializePopulation(population []*Person, param Parameters) {
 	var riskyParam func() float64
 
-	if r := param.RiskynessDistribution; r.Code == NORISK {
+	if param.A == -1 && param.B == -1 {
+		// special case: use no risk here.
 		riskyParam = func() float64 {
 			return 0
 		}
@@ -120,7 +105,8 @@ func initializePopulation(population []*Person, param SimulationParameters) {
 		// Probably not a big deal that we're seeding a new random source here -
 		// seems way better than plumbing a *rand.Source all the way through.
 		// Not sure what the downside would even be to making two rand.Source's.
-		beta := distuv.Beta{r.A, r.B, rand.NewSource(uint64(time.Now().UnixNano()))}
+		beta := distuv.Beta{param.A, param.B,
+			rand.NewSource(uint64(time.Now().UnixNano()))}
 
 		riskyParam = func() float64 {
 			return beta.Rand()
@@ -134,13 +120,16 @@ func initializePopulation(population []*Person, param SimulationParameters) {
 
 
 
-// Computes the various R0 values for a SimulationParameters struct, returns
+// Computes the various R0 values for a Parameters struct, returns
 // a copy with these values set in it.
-func computeR0(param SimulationParameters) SimulationParameters {
+func ComputeR0(param Parameters) Parameters {
 	// this one doesn't really change
-	param.R0c = param.AlphaC * float64(param.N * param.DiseaseLength)
+	param.R0c = param.AlphaC * float64(param.N) * float64(param.DiseaseLength)
+	//param.R0c = param.AlphaC * float64(param.N) / param.Beta
 
-	if r := param.RiskynessDistribution; r.Code == NORISK {
+
+	if param.A == -1 && param.B == -1 {
+		// special case: use no risk here.
 		param.R0r = 0
 	} else {
 		// risky contacts if you take the risk is:
@@ -148,14 +137,49 @@ func computeR0(param SimulationParameters) SimulationParameters {
 		// so expected number of risky contacts is:
 		// E[riskyness] * (number people * E[riskyness])
 		// and total R0r is this times alpha times disease length
-		expectedRiskyness := distuv.Beta{r.A, r.B, nil}.Mean()
+		expectedRiskyness := distuv.Beta{param.A, param.B, nil}.Mean()
 		param.R0r = (math.Pow(expectedRiskyness, 2) *
-			param.AlphaR * float64(param.N * param.DiseaseLength))
+			param.AlphaR * float64(param.N) * float64(param.DiseaseLength))
+			//param.AlphaR * float64(param.N * param.DiseaseLength))
+
 	}
 
 	// total is always just the sum
 	param.R0 = param.R0c + param.R0r
 	return param
+}
+
+
+// Computes the chance of becoming infected when taking the "risky" action in
+// a day.
+func computeRiskyRisk(population []*Person, param Parameters) float64 {
+	c := 1.0
+	for _, person := range population {
+		if person.Status == INFECTED {
+			c *= (1 - person.Riskyness * param.AlphaR)
+		}
+	}
+	return 1 - c
+}
+
+
+func computeERtr(population []*Person, param Parameters) float64 {
+	// Effective instantaneous Rt due to Riskyness in the population
+	// Only considers pr in the susceptible population
+	sumSRiskyness := 0.0
+	numSusceptible := 0.0
+	for _, person := range population {
+		if person.Status == SUSCEPTIBLE {
+			sumSRiskyness += person.Riskyness
+			numSusceptible += 1.0
+		}
+	}
+	// avoids dividing by zero:
+	if numSusceptible == 0.0 {
+		return 0.0
+	}
+	//return sumSRiskyness * param.AlphaR * (sumIRiskyness / numInfected) / param.Beta
+	return sumSRiskyness * param.AlphaR * (sumSRiskyness / numSusceptible) * float64(param.DiseaseLength)
 }
 
 
@@ -165,7 +189,7 @@ func computeR0(param SimulationParameters) SimulationParameters {
 func spreadWithin(
 	population []*Person, alpha float64, isRisky bool, eventTime EventTime) {
 	for p, person := range population {
-		if (person.Status == INFECTED) {
+		if (person.Status == INFECTED && person.daysInfected > 0) {
 			for o, other := range population {
 				if (o != p) && (other.Status == SUSCEPTIBLE) {
 					if rand.Float64() < alpha {
@@ -185,14 +209,18 @@ func spreadWithin(
 }
 
 
-func simulate(param SimulationParameters) SimulationResults {
+func Run(param Parameters) Results {
 
 	// Saves the parameters used for this simulation along with the top level
 	// results we care about.
-	results := &SimulationResults{
-		param, make([][]int, param.Trials),
-		make([]int, param.Trials),
-		make([][]*InfectionEvent, param.Trials),
+	results := &Results{
+		Parameters: param,
+		Infecteds: make([][]int, param.Trials),
+		Susceptibles: make([][]int, param.Trials),
+		FinalRs: make([]int, param.Trials),
+		InfectionEvents: make([][]*InfectionEvent, param.Trials),
+		RiskyRisks: make([][]float64, param.Trials),
+		ERtrs: make([][]float64, param.Trials),
 	}
 
 	// Conduct param.Trials discrete trials of the epidemic
@@ -204,8 +232,13 @@ func simulate(param SimulationParameters) SimulationResults {
 		initializePopulation(population, param)
 
 
-		// Measure the number of infecteds over the course of the run:
+		// Set up slices for each of the metrics to measure over the
+		// course of the run
 		infecteds := []int{}
+		susceptibles := []int{}
+		riskyRisks := []float64{}
+		eRtrs := []float64{}
+
 
 		// Infect person 0 (should maybe vary this?)
 		infect := rand.Int() % param.N
@@ -241,16 +274,27 @@ func simulate(param SimulationParameters) SimulationResults {
 					if population[p].daysInfected >= param.DiseaseLength {
 						population[p].Status = RECOVERED
 					}
+					// if rand.Float64() < param.Beta {
+					// 	population[p].Status = RECOVERED
+					// }
 				}
 			}
+			// Incidentally, we use `infected` to track when the simulation
+			// is complete too, so we have to update a variable here:
 			infected = countStatus(population, INFECTED)
 			infecteds = append(infecteds, infected)
+			susceptibles = append(susceptibles, countStatus(population, SUSCEPTIBLE))
+			riskyRisks = append(riskyRisks, computeRiskyRisk(population, param))
+			eRtrs = append(eRtrs, computeERtr(population, param))
 		}
 
 		// The epidemic has run its course, so now we save the things we want
 		// to save.
 		results.FinalRs[i] = countStatus(population, RECOVERED)
 		results.Infecteds[i] = infecteds
+		results.Susceptibles[i] = susceptibles
+		results.RiskyRisks[i] = riskyRisks
+		results.ERtrs[i] = eRtrs
 		results.InfectionEvents[i] = []*InfectionEvent{}
 		for _, person := range population {
 			if person.InfectionEvent != nil {
@@ -265,17 +309,11 @@ func simulate(param SimulationParameters) SimulationResults {
 }
 
 
-func (params SimulationParameters) fileDescription() string {
-	return fmt.Sprintf("%v,T=%v,N=%v",
-	params.RiskynessDistribution.Code,
-	params.Trials,
-	params.N)
-}
 
-
-func (params SimulationParameters) fileDescriptionLong() string {
-	return fmt.Sprintf("%v,T=%v,N=%v,ac=%v,ar=%v,dl=%v",
-		params.RiskynessDistribution.Code,
+func (params Parameters) FileDescriptionLong() string {
+	return fmt.Sprintf("A=%v,B=%v,T=%v,N=%v,ac=%v,ar=%v,dl=%v",
+		params.A,
+		params.B,
 		params.Trials,
 		params.N,
 		params.AlphaC,
