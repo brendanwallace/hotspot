@@ -279,6 +279,7 @@ func Run(param Parameters) Results {
 					// }
 				}
 			}
+			// Track the information we later analyze:
 			// Incidentally, we use `infected` to track when the simulation
 			// is complete too, so we have to update a variable here:
 			infected = countStatus(population, INFECTED)
