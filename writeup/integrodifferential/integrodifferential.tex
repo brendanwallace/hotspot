@@ -1,0 +1,23 @@
+\documentclass{article}
+\usepackage{amsmath}
+
+\begin{document}
+
+
+
+
+\begin{align*}
+\frac{\partial S(p, t)}{\partial t} &=
+	-\beta_c S(p, t) \int_{0}^1 I(u, t) du
+	-\beta_r S(p, t) p \int_{0}^1 I(u, t) u du\\
+\frac{\partial I(p, t)}{\partial t} &=
+	\beta_c S(p, t) \int_{0}^1 I(u, t) du
+	+ \beta_r S(p, t) p \int_{0}^1 I(u, t) u du - \gamma I(p, t)
+\end{align*}
+
+\begin{align*}
+\frac{\partial G_S(u, t)}{\partial t} &= -\beta_c \bar{I} G_S - \beta_r \hat{I} \frac{\partial}{\partial u} G_S\\
+\frac{\partial G_I(u, t)}{\partial t} &= \beta_c \bar{I} G_S + \beta_r \hat{I} \frac{\partial}{\partial u} G_S - \gamma G_I
+\end{align*}
+
+\end{document}

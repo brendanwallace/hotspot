@@ -22,15 +22,22 @@ var alphaCFlag = flag.Float64("ac", 0.0001,
 var AFlag = flag.Float64("A", 1, "beta distribution A parameter")
 var BFlag = flag.Float64("B", 1, "beta distribution B parameter")
 
-func main() {
+func main2() {
 	flag.Parse()
 	rand.Seed(uint64(time.Now().UnixNano()))
+
+	var risk *simulate.RiskDistribution = nil
+	if *AFlag >= 0 && *BFlag >= 0 {
+		risk = &simulate.RiskDistribution{
+			A: *AFlag,
+			B: *BFlag,
+		}
+	}
 
 	// Set up the parameters of the simulation
 	params := simulate.Parameters{
 		//RiskynessDistribution: distribution,
-		A: *AFlag,
-		B: *BFlag,
+		RiskDist: risk,
 		AlphaC: *alphaCFlag,
 		AlphaR: *alphaRFlag,
 		DiseaseLength: 10,
