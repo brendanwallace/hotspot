@@ -48,7 +48,6 @@ func main2() {
 		N: *NFlag,
 		Trials: *trialsFlag,
 	}
-	params = simulate.ComputeR0(params)
 	filename := fmt.Sprintf("%v.json", params.FileDescriptionLong())
 	fmt.Println("starting simulation. will save output as:")
 	fmt.Println(filename)

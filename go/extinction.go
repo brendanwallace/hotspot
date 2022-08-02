@@ -145,8 +145,6 @@ func hetero_alpha() {
 				results.TrialResults, TrialResult{mu, std, 0, 0, res.FinalRs})
 		}
 
-		//var results simulate.Results = simulate.Run(params)
-		params = simulate.ComputeR0(params)
 		
 
 		// Output to appropriately named file
