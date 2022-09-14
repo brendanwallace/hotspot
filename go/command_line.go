@@ -2,14 +2,15 @@ package main
 
 import (
 	//"errors"
-	"github.com/brendanwallace/riskySIR/simulate"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
-	"golang.org/x/exp/rand"
 	"time"
+
+	"github.com/brendanwallace/riskySIR/simulate"
+	"golang.org/x/exp/rand"
 )
 
 var NFlag = flag.Int("N", 1000, "number of people in simulation")
@@ -37,33 +38,31 @@ func main2() {
 	// Set up the parameters of the simulation
 	params := simulate.Parameters{
 		//RiskynessDistribution: distribution,
-		RiskDist: risk,
-		AlphaC: *alphaCFlag,
-		AlphaR: *alphaRFlag,
+		RiskDist:      risk,
+		AlphaC:        *alphaCFlag,
+		AlphaR:        *alphaRFlag,
 		DiseaseLength: 10,
 		// these get added by computeR0 function:
-		R0c: -1,
-		R0r: -1,
-		R0: -1,
-		N: *NFlag,
+		// R0c: -1,
+		// R0r: -1,
+		// R0: -1,
+		N:      *NFlag,
 		Trials: *trialsFlag,
 	}
 	filename := fmt.Sprintf("%v.json", params.FileDescriptionLong())
 	fmt.Println("starting simulation. will save output as:")
 	fmt.Println(filename)
 
-	
 	/////////////////////////////////////
 	// Run the simulation
 	/////////////////////////////////////
-	var results simulate.Results = simulate.Run(params)
+	var results simulate.Results = simulate.RunSimulation(params)
 
 	// Output to appropriately named file
 	file, jsonErr := json.MarshalIndent(results, "", "\t")
 	if jsonErr != nil {
 		log.Fatal(jsonErr)
 	}
-
 
 	writeFileErr := ioutil.WriteFile("data/"+filename, file, 0644)
 	if writeFileErr != nil {
