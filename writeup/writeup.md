@@ -24,7 +24,7 @@ $$P(X=0) = \rho_i \prod_j (1 - \rho_j \alpha_r) \prod_j (1 - \alpha_c) + (1 - \r
 $$
 \begin{aligned}
 E[P(X=0)] &=
-E[\rho_i \prod_j (1 - \rho_j \alpha_r) \prod_j (1 - \alpha_c) + (1 - \rho_i) \prod_j (1 - \alpha_c)]\\
+E[\rho_i] \prod_j (1 - \rho_j \alpha_r) \prod_j (1 - \alpha_c) + (1 - \rho_i) \prod_j (1 - \alpha_c)]\\
 &= E[\rho_i] \prod_j (1 - E[\rho_j] \alpha_r) \prod_j (1 - \alpha_c)
 	* (1 - E[\rho_i]) \prod_j (1 - \alpha_c)\\
 \end{aligned}

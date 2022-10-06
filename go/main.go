@@ -35,26 +35,32 @@ type SeriesResult struct {
 
 // Top level collections of series results
 type FullResult struct {
-	// Homogeneous    []SeriesResult
-	// Heterogeneous  []SeriesResult
-	RiskStructured []SeriesResult
+	Homogeneous   []SeriesResult
+	Heterogeneous []SeriesResult
+	// Map from R0 values to the list of series results
+	RiskStructured map[string][]SeriesResult
 }
 
 const N = 1000
-const TRIALS = 100
-const R0 = 8
+const TRIALS = 1
 
 func main() {
 	results := FullResult{
-		// homo_alpha(),
-		// hetero_alpha(),
-		risk_structure(),
+		homo_alpha(),
+		hetero_alpha(),
+		map[string][]SeriesResult{
+			"1.1": risk_structure(1.1),
+			"1.2": risk_structure(1.2),
+			"1.5": risk_structure(1.5),
+			"2.0": risk_structure(2.0),
+			"4.0": risk_structure(4.0),
+			"8.0": risk_structure(8.0)},
 	}
 	write(results)
 }
 
 func write(results FullResult) {
-	fileName := fmt.Sprintf("R0_%v.json", R0)
+	fileName := fmt.Sprintf("full_results_small.json")
 
 	// Output to appropriately named file
 	file, jsonErr := json.MarshalIndent(results, "", "\t")
@@ -68,7 +74,7 @@ func write(results FullResult) {
 	}
 }
 
-func risk_structure() []SeriesResult {
+func risk_structure(R0 float64) []SeriesResult {
 
 	// vary alpha c from 8 -> 0
 	// match alpha r to keep R_0 = 8 (using a=2, b=6 for riskyness)
@@ -99,7 +105,7 @@ func risk_structure() []SeriesResult {
 		{"0.25 medium", 1, 3},
 		{"0.25 low", 2, 6},
 	} {
-		resultName := fmt.Sprintf("%v", run.description)
+		resultName := fmt.Sprintf("%v %v", R0, run.description)
 		fmt.Println("\nstarting series ", resultName)
 
 		seriesResult := SeriesResult{resultName, []SingleResult{}}
@@ -108,7 +114,6 @@ func risk_structure() []SeriesResult {
 			A: run.a,
 			B: run.b,
 		}
-		var R0 float64 = R0
 
 		meanP := run.a / (run.a + run.b)
 		for alphaC := R0; alphaC >= 0; alphaC -= 0.2 {
@@ -148,9 +153,9 @@ func hetero_alpha() []SeriesResult {
 
 	seriesResults := []SeriesResult{}
 
-	for _, mu := range []float64{2.0, 4.0, 6.0, 8.0} {
+	for _, mu := range []float64{1.5, 2.0, 4.0, 8.0} {
 
-		resultName := fmt.Sprintf("extinctions_hetero_alphac_%v", mu)
+		resultName := fmt.Sprintf("hetero_alphac_%v", mu)
 		fmt.Println("\nstarting series", resultName)
 
 		seriesResult := SeriesResult{resultName, []SingleResult{}}

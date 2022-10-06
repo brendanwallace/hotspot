@@ -13,15 +13,23 @@ const BUCKETS = 100
 const END_THRESHOLD = 0.1
 
 type DifEqResults struct {
-	FinalR float64
-	MaxI   float64
-	Is     []float64
+	FinalR              float64
+	MaxI                float64
+	Is                  []float64
+	Rts                 []float64
+	EffectiveAlphas     []float64
+	IRisks              []float64
+	SRisks              []float64
+	RiskyInfections     []float64
+	CommunityInfections []float64
 }
 
 type DifferenceResults struct {
-	FinalR float64
-	MaxI   float64
-	Is     []float64
+	FinalR              float64
+	MaxI                float64
+	Is                  []float64
+	RiskyInfections     []float64
+	CommunityInfections []float64
 }
 
 func sum(population []float64) float64 {
@@ -76,6 +84,11 @@ func RunDifEq(param Parameters) DifEqResults {
 	// Gamma in the dif eq is the inverse of disease length:
 	gamma := 1 / float64(param.DiseaseLength)
 	Is := []float64{}
+	Rts := []float64{}
+	EffectiveAlphas := []float64{}
+	RiskyInfectionsToReturn := []float64{}
+	CommunityInfectionsToReturn := []float64{}
+	IRisks, SRisks := []float64{}, []float64{}
 
 	maxInfected := -1.0
 	for sumI := sum(I); sumI >= END_THRESHOLD; sumI = sum(I) {
@@ -94,12 +107,30 @@ func RunDifEq(param Parameters) DifEqResults {
 		}
 
 		// sumI = sum(I)
+		var rInfectionsThisGen, cInfectionsThisGen float64
 		momentI := firstMoment(I, BUCKETS)
 		for b := 0; b < BUCKETS; b++ {
 			communityInfections := S[b] * param.AlphaC * sumI * DT
 			riskyInfections := S[b] * riskValue(b, BUCKETS) * param.AlphaR * momentI * DT
 			newInfections[b] = communityInfections + riskyInfections
+
+			// Save these to return per generation
+			cInfectionsThisGen += communityInfections
+			rInfectionsThisGen += riskyInfections
 		}
+		RiskyInfectionsToReturn = append(RiskyInfectionsToReturn, rInfectionsThisGen/DT)
+		CommunityInfectionsToReturn = append(CommunityInfectionsToReturn, cInfectionsThisGen/DT)
+
+		// Compute Rt
+		sumS := sum(S)
+		momentS := firstMoment(S, BUCKETS)
+		Rt := sumS * (param.AlphaC + param.AlphaR*(momentI/sumI)*(momentS/sumS))
+		Rts = append(Rts, Rt)
+		EffectiveAlpha := (param.AlphaC + param.AlphaR*(momentI/sumI)*(momentS/sumS))
+		EffectiveAlphas = append(EffectiveAlphas, EffectiveAlpha)
+
+		IRisks = append(IRisks, (momentI / sumI))
+		SRisks = append(SRisks, (momentS / sumS))
 
 		for b := 0; b < BUCKETS; b++ {
 			S[b] -= newInfections[b]
@@ -109,7 +140,17 @@ func RunDifEq(param Parameters) DifEqResults {
 		}
 	}
 
-	return DifEqResults{FinalR: sum(R), MaxI: maxInfected, Is: Is}
+	return DifEqResults{
+		FinalR:              sum(R),
+		MaxI:                maxInfected,
+		Is:                  Is,
+		Rts:                 Rts,
+		EffectiveAlphas:     EffectiveAlphas,
+		RiskyInfections:     RiskyInfectionsToReturn,
+		IRisks:              IRisks,
+		SRisks:              SRisks,
+		CommunityInfections: CommunityInfectionsToReturn,
+	}
 }
 
 // This is kind of complicated.
