@@ -91,7 +91,15 @@ func RunDifEq(param Parameters) DifEqResults {
 	IRisks, SRisks := []float64{}, []float64{}
 
 	maxInfected := -1.0
+	currentTime := 0.0
+	interventionInEffect := false
+
 	for sumI := sum(I); sumI >= END_THRESHOLD; sumI = sum(I) {
+
+		if param.Intervention != nil {
+			interventionInEffect = (currentTime >= param.Intervention.Start &&
+				currentTime < param.Intervention.Start+param.Intervention.Duration)
+		}
 
 		Is = append(Is, sumI)
 		if sumI > maxInfected {
@@ -109,9 +117,23 @@ func RunDifEq(param Parameters) DifEqResults {
 		// sumI = sum(I)
 		var rInfectionsThisGen, cInfectionsThisGen float64
 		momentI := firstMoment(I, BUCKETS)
+
+		// apply interventions like this:
+		var alphaR float64 = param.AlphaR
+		if param.Caution {
+			alphaR = CautionAlphaR(sumI/float64(param.N), alphaR)
+		}
+		if interventionInEffect {
+			alphaR = 0
+		}
 		for b := 0; b < BUCKETS; b++ {
 			communityInfections := S[b] * param.AlphaC * sumI * DT
-			riskyInfections := S[b] * riskValue(b, BUCKETS) * param.AlphaR * momentI * DT
+			// if interventionInEffect {
+			// 	communityInfections *= (1.0 / 2.0)
+			// }
+
+			riskyInfections := S[b] * riskValue(b, BUCKETS) * alphaR * momentI * DT
+
 			newInfections[b] = communityInfections + riskyInfections
 
 			// Save these to return per generation
@@ -124,9 +146,10 @@ func RunDifEq(param Parameters) DifEqResults {
 		// Compute Rt
 		sumS := sum(S)
 		momentS := firstMoment(S, BUCKETS)
-		Rt := sumS * (param.AlphaC + param.AlphaR*(momentI/sumI)*(momentS/sumS))
+		// alphaR is the version that possibly uses 'caution' and interventions
+		Rt := sumS * (param.AlphaC + alphaR*(momentI/sumI)*(momentS/sumS))
 		Rts = append(Rts, Rt)
-		EffectiveAlpha := (param.AlphaC + param.AlphaR*(momentI/sumI)*(momentS/sumS))
+		EffectiveAlpha := (param.AlphaC + alphaR*(momentI/sumI)*(momentS/sumS))
 		EffectiveAlphas = append(EffectiveAlphas, EffectiveAlpha)
 
 		IRisks = append(IRisks, (momentI / sumI))
@@ -138,6 +161,7 @@ func RunDifEq(param Parameters) DifEqResults {
 			I[b] -= recoveries[b]
 			R[b] += recoveries[b]
 		}
+		currentTime += DT
 	}
 
 	return DifEqResults{

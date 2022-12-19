@@ -13,12 +13,15 @@ const INITIAL_INFECTED = 1
 
 // Measured outcomes from the run(s) as well as parameters.
 type Results struct {
-	Parameters          Parameters
-	FinalRs             []int
-	MaxIs               []int
-	Is                  [][]int
-	RiskyInfections     [][]int
-	CommunityInfections [][]int
+	Parameters Parameters
+	FinalRs    []int
+	MaxIs      []int
+
+	// Tracks how many infections each individual caused
+	SecondaryInfectionCounts [][]int
+	// Is                  [][]int
+	// RiskyInfections     [][]int
+	// CommunityInfections [][]int
 }
 
 // Infection Status enum.
@@ -38,6 +41,8 @@ type Person struct {
 	Riskyness    float64
 	AlphaC       float64
 	AlphaR       float64
+
+	SecondaryInfectionCount int
 }
 
 func countStatus(population []*Person, status Status) int {
@@ -63,8 +68,11 @@ func initializePopulation(population []*Person, param Parameters) {
 		// Probably not a big deal that we're seeding a new random source here -
 		// seems way better than plumbing a *rand.Source all the way through.
 		// Not sure what the downside would even be to making two rand.Source's.
-		beta := distuv.Beta{param.RiskDist.A, param.RiskDist.B,
-			rand.NewSource(uint64(time.Now().UnixNano()))}
+		beta := distuv.Beta{
+			Alpha: param.RiskDist.A,
+			Beta:  param.RiskDist.B,
+			Src:   rand.NewSource(uint64(time.Now().UnixNano())),
+		}
 
 		risky = func() float64 {
 			return beta.Rand()
@@ -81,7 +89,9 @@ func initializePopulation(population []*Person, param Parameters) {
 		a := mu * mu / (std * std)
 		b := mu / (std * std)
 		gamma := distuv.Gamma{
-			a, b, rand.NewSource(uint64(time.Now().UnixNano()))}
+			Alpha: a,
+			Beta:  b,
+			Src:   rand.NewSource(uint64(time.Now().UnixNano()))}
 
 		alphaC = func() float64 {
 			// g := gamma.Rand()
@@ -92,7 +102,14 @@ func initializePopulation(population []*Person, param Parameters) {
 	}
 
 	for p := range population {
-		population[p] = &Person{SUSCEPTIBLE, 0, risky(), alphaC(), alphaR()}
+		population[p] = &Person{
+			Status:                  SUSCEPTIBLE,
+			daysInfected:            0,
+			Riskyness:               risky(),
+			AlphaC:                  alphaC(),
+			AlphaR:                  alphaR(),
+			SecondaryInfectionCount: 0,
+		}
 	}
 }
 
@@ -111,6 +128,8 @@ func spreadWithin(
 					}
 					if rand.Float64() < alpha {
 						population[o].Status = INFECTED
+						population[p].SecondaryInfectionCount =
+							population[p].SecondaryInfectionCount + 1
 					}
 				}
 			}
@@ -126,7 +145,8 @@ func RunSimulation(param Parameters) Results {
 		Parameters: param,
 		FinalRs:    make([]int, param.Trials),
 		MaxIs:      make([]int, param.Trials),
-		Is:         make([][]int, param.Trials),
+		// Is:         make([][]int, param.Trials),
+		SecondaryInfectionCounts: make([][]int, param.Trials),
 	}
 
 	// Conduct param.Trials discrete trials of the epidemic
@@ -183,7 +203,14 @@ func RunSimulation(param Parameters) Results {
 		// to save.
 		results.FinalRs[i] = countStatus(population, RECOVERED)
 		results.MaxIs[i] = maxInfected
-		results.Is[i] = Is
+		infectionCounts := []int{}
+		for _, person := range population {
+			if person.Status == RECOVERED {
+				infectionCounts = append(infectionCounts, person.SecondaryInfectionCount)
+			}
+		}
+		results.SecondaryInfectionCounts[i] = infectionCounts
+		// results.Is[i] = Is
 
 	}
 	// fmt.Printf("\r%v/%v\n", param.Trials, param.Trials)

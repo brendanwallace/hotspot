@@ -13,7 +13,7 @@ import (
 
 // Identical simulation run some number of times
 // This can contain some unused/optional fields
-type SingleResult struct {
+type Result struct {
 	// Mu          float64
 	// Std         float64
 	// AlphaC      float64
@@ -27,40 +27,37 @@ type SingleResult struct {
 	SimulationResults simulate.Results
 }
 
-// Simulation results varied systematically along some axis
-type SeriesResult struct {
-	Description  string
-	TrialResults []SingleResult
-}
-
-// Top level collections of series results
-type FullResult struct {
-	Homogeneous   []SeriesResult
-	Heterogeneous []SeriesResult
-	// Map from R0 values to the list of series results
-	RiskStructured map[string][]SeriesResult
-}
-
 const N = 1000
-const TRIALS = 1
+const TRIALS = 1000
 
 func main() {
-	results := FullResult{
-		homo_alpha(),
-		hetero_alpha(),
-		map[string][]SeriesResult{
-			"1.1": risk_structure(1.1),
-			"1.2": risk_structure(1.2),
-			"1.5": risk_structure(1.5),
-			"2.0": risk_structure(2.0),
-			"4.0": risk_structure(4.0),
-			"8.0": risk_structure(8.0)},
-	}
-	write(results)
+
+	var results [][]Result
+
+	// fmt.Println("\n100 0")
+
+	// results = extinction_results(1.0, 0.0)
+	// write(results, "extinction_results_100_0")
+
+	fmt.Println("\n75 25")
+
+	results = extinction_results(.75, .25)
+	write(results, "extinction_results_75_25")
+
+	fmt.Println("\n50 50")
+
+	results = extinction_results(.50, .50)
+	write(results, "extinction_results_50_50")
+
+	fmt.Println("\n25 75")
+
+	results = extinction_results(.25, .75)
+	write(results, "extinction_results_25_75")
+
 }
 
-func write(results FullResult) {
-	fileName := fmt.Sprintf("full_results_small.json")
+func write(results [][]Result, filename string) {
+	fileName := fmt.Sprintf("%s.json", filename)
 
 	// Output to appropriately named file
 	file, jsonErr := json.MarshalIndent(results, "", "\t")
@@ -74,10 +71,120 @@ func write(results FullResult) {
 	}
 }
 
-func risk_structure(R0 float64) []SeriesResult {
+func intervention() []Result {
 
-	// vary alpha c from 8 -> 0
-	// match alpha r to keep R_0 = 8 (using a=2, b=6 for riskyness)
+	// initialize random seed
+	rand.Seed(uint64(time.Now().UnixNano()))
+
+	// immutable parameters
+	// risk distribution (gamma) parameters:
+	A, B := 1.0, 3.0
+	// mean riskyness:
+	meanP := A / (A + B)
+	// total R0:
+	R0 := 3.0
+	// R0 due to community spread:
+	R0c := 1.0
+	params := simulate.Parameters{
+		AlphaC:        R0c / N,
+		AlphaR:        simulate.AlphaR(R0, R0c, meanP, N),
+		DiseaseLength: 1,
+		N:             N,
+		Trials:        TRIALS,
+		RiskDist: &simulate.RiskDistribution{
+			A: A,
+			B: B,
+		},
+	}
+	// this may change - close problem places for this long:
+	const InterventionDuration = 2.0
+
+	// initialize results to save
+	var results []Result = []Result{}
+
+	for start := 0.0; start <= 30.0; start += 0.1 {
+
+		intervention := simulate.Intervention{
+			Start:    start,
+			Duration: InterventionDuration,
+		}
+		params.Intervention = &intervention
+
+		results = append(results, Result{
+			Parameters:   params,
+			DifEqResults: simulate.RunDifEq(params),
+			//SimulationResults: simulate.RunSimulation(params),
+		})
+
+	}
+	return results
+
+}
+
+func caution() []Result {
+
+	// initialize random seed
+	rand.Seed(uint64(time.Now().UnixNano()))
+
+	// immutable parameters
+	// risk distribution (gamma) parameters:
+	A, B := 1.0, 9.0
+	// mean riskyness:
+	meanP := A / (A + B)
+	// total R0:
+	R0 := 3.0
+	// R0 due to community spread:
+	R0c := 1.0
+	params := simulate.Parameters{
+		AlphaC:        R0c / N,
+		AlphaR:        simulate.AlphaR(R0, R0c, meanP, N),
+		DiseaseLength: 1,
+		N:             N,
+		Trials:        TRIALS,
+		RiskDist: &simulate.RiskDistribution{
+			A: A,
+			B: B,
+		},
+	}
+	// this may change - close problem places for this long:
+	const InterventionDuration = 1.0
+
+	// initialize results to save
+	var results []Result = []Result{}
+
+	// run without:
+	results = append(results, Result{
+		Parameters:   params,
+		DifEqResults: simulate.RunDifEq(params),
+		//SimulationResults: simulate.RunSimulation(params),
+	})
+
+	params.Caution = true
+
+	// run with:
+	results = append(results, Result{
+		Parameters:   params,
+		DifEqResults: simulate.RunDifEq(params),
+		//SimulationResults: simulate.RunSimulation(params),
+	})
+
+	params.AlphaC = R0 / N
+	params.AlphaR = 0
+	results = append(results, Result{
+		Parameters:   params,
+		DifEqResults: simulate.RunDifEq(params),
+	})
+	return results
+}
+
+// Spread contribution is set to 50/50
+// Consider 9 different risk distributions
+// For each one, vary R0 from 0.0 -> 8.0
+func extinction_results(C float64, R float64) [][]Result {
+
+	// vary R0 0 -> 8
+
+	const EndR0 = 8.0
 
 	rand.Seed(uint64(time.Now().UnixNano()))
 	params := simulate.Parameters{
@@ -88,27 +195,27 @@ func risk_structure(R0 float64) []SeriesResult {
 		Trials:        TRIALS,
 	}
 
-	seriesResults := []SeriesResult{}
+	results := [][]Result{}
 
 	for _, run := range []struct {
 		description string
 		a           float64
 		b           float64
 	}{
-		{"0.75 high", 0.3, 0.1},
-		{"0.75 medium", 3, 1},
-		{"0.75 low", 6, 2},
 		{"0.5 high", 0.1, 0.1},
 		{"0.5 medium", 1, 1},
 		{"0.5 low", 2, 2},
 		{"0.25 high", 0.1, 0.3},
 		{"0.25 medium", 1, 3},
 		{"0.25 low", 2, 6},
+		{"0.125 high", .1, 0.7},
+		{"0.125 medium", 1, 7},
+		{"0.125 low", 2, 14},
 	} {
-		resultName := fmt.Sprintf("%v %v", R0, run.description)
+		resultName := fmt.Sprintf("%v", run.description)
 		fmt.Println("\nstarting series ", resultName)
 
-		seriesResult := SeriesResult{resultName, []SingleResult{}}
+		series := []Result{}
 
 		params.RiskDist = &simulate.RiskDistribution{
 			A: run.a,
@@ -116,96 +223,23 @@ func risk_structure(R0 float64) []SeriesResult {
 		}
 
 		meanP := run.a / (run.a + run.b)
-		for alphaC := R0; alphaC >= 0; alphaC -= 0.2 {
-			fmt.Printf("\r%f/%f", alphaC, R0)
+		for R0 := 0.0; R0 <= EndR0; R0 += 0.1 {
+			fmt.Printf("\r%f/%f", R0, EndR0)
 
-			// TODO: turn this into a top level function with unit tests:
-			alphaR := (R0 - alphaC) / meanP / meanP
-			params.AlphaC = alphaC / N
-			params.AlphaR = alphaR / N
-			seriesResult.TrialResults = append(
-				seriesResult.TrialResults,
-				SingleResult{
+			params.AlphaC = (R0 * C) / N
+			params.AlphaR = (R0 * R / meanP / meanP) / N
+			series = append(
+				series,
+				Result{
 					Parameters:        params,
 					DifEqResults:      simulate.RunDifEq(params),
 					DifferenceResults: simulate.RunDifference(params),
 					SimulationResults: simulate.RunSimulation(params)})
 
 		}
-		seriesResults = append(seriesResults, seriesResult)
+		results = append(results, series)
 
 	}
-	return seriesResults
+	return results
 
-}
-
-func hetero_alpha() []SeriesResult {
-
-	rand.Seed(uint64(time.Now().UnixNano()))
-
-	params := simulate.Parameters{
-		AlphaC:        0,
-		AlphaR:        0,
-		DiseaseLength: 1,
-		N:             1000,
-		Trials:        TRIALS,
-	}
-
-	seriesResults := []SeriesResult{}
-
-	for _, mu := range []float64{1.5, 2.0, 4.0, 8.0} {
-
-		resultName := fmt.Sprintf("hetero_alphac_%v", mu)
-		fmt.Println("\nstarting series", resultName)
-
-		seriesResult := SeriesResult{resultName, []SingleResult{}}
-
-		stdMax := 30.0
-		for std := 0.1; std <= stdMax; std += 0.2 {
-			fmt.Printf("\r%f/%f", std, stdMax)
-			params.AlphaDist = &simulate.AlphaDistribution{Mu: mu, Std: std}
-
-			seriesResult.TrialResults = append(
-				seriesResult.TrialResults,
-				SingleResult{
-					Parameters:        params,
-					DifEqResults:      simulate.RunDifEq(params),
-					SimulationResults: simulate.RunSimulation(params)})
-		}
-
-		seriesResults = append(seriesResults, seriesResult)
-	}
-
-	return seriesResults
-
-}
-
-func homo_alpha() []SeriesResult {
-
-	rand.Seed(uint64(time.Now().UnixNano()))
-
-	params := simulate.Parameters{
-		AlphaC:        0,
-		AlphaR:        0,
-		DiseaseLength: 1,
-		N:             1000,
-		Trials:        TRIALS,
-	}
-
-	resultName := "homo_alphac"
-	fmt.Println("\nstarting series", resultName)
-
-	seriesResult := SeriesResult{resultName, []SingleResult{}}
-	for alphaC := 0.001; alphaC <= 0.008; alphaC += 0.001 {
-		params.AlphaC = alphaC
-
-		seriesResult.TrialResults = append(
-			seriesResult.TrialResults,
-			SingleResult{
-				Parameters:        params,
-				DifEqResults:      simulate.RunDifEq(params),
-				SimulationResults: simulate.RunSimulation(params)})
-	}
-
-	return []SeriesResult{seriesResult}
 }
