@@ -11,19 +11,6 @@ import (
 
 const INITIAL_INFECTED = 1
 
-// Measured outcomes from the run(s) as well as parameters.
-type Results struct {
-	Parameters Parameters
-	FinalRs    []int
-	MaxIs      []int
-
-	// Tracks how many infections each individual caused
-	SecondaryInfectionCounts [][]int
-	// Is                  [][]int
-	// RiskyInfections     [][]int
-	// CommunityInfections [][]int
-}
-
 // Infection Status enum.
 type Status int
 

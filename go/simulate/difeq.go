@@ -12,26 +12,6 @@ const INITIAL_INFECTEDS = 1.0
 const BUCKETS = 100
 const END_THRESHOLD = 0.1
 
-type DifEqResults struct {
-	FinalR              float64
-	MaxI                float64
-	Is                  []float64
-	Rts                 []float64
-	EffectiveAlphas     []float64
-	IRisks              []float64
-	SRisks              []float64
-	RiskyInfections     []float64
-	CommunityInfections []float64
-}
-
-type DifferenceResults struct {
-	FinalR              float64
-	MaxI                float64
-	Is                  []float64
-	RiskyInfections     []float64
-	CommunityInfections []float64
-}
-
 func sum(population []float64) float64 {
 	total := 0.0
 	for _, p := range population {
