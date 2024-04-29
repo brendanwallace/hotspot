@@ -58,30 +58,23 @@ func InitializePopulations(param Parameters) ([]float64, []float64, []float64) {
 	return S, I, R
 }
 
-func RunDifEq(param Parameters) DifEqResults {
+func RunDifEq(param Parameters) RunSet {
 
 	S, I, R := InitializePopulations(param)
 	// Gamma in the dif eq is the inverse of disease length:
 	gamma := 1 / float64(param.DiseaseLength)
+	Ts := []float64{}
 	Is := []float64{}
+	Rs := []float64{}
 	Rts := []float64{}
 	EffectiveAlphas := []float64{}
-	RiskyInfectionsToReturn := []float64{}
-	CommunityInfectionsToReturn := []float64{}
 	IRisks, SRisks := []float64{}, []float64{}
 
 	maxInfected := -1.0
 	currentTime := 0.0
-	interventionInEffect := false
 
 	for sumI := sum(I); sumI >= END_THRESHOLD; sumI = sum(I) {
 
-		if param.Intervention != nil {
-			interventionInEffect = (currentTime >= param.Intervention.Start &&
-				currentTime < param.Intervention.Start+param.Intervention.Duration)
-		}
-
-		Is = append(Is, sumI)
 		if sumI > maxInfected {
 			maxInfected = sumI
 		}
@@ -100,12 +93,6 @@ func RunDifEq(param Parameters) DifEqResults {
 
 		// apply interventions like this:
 		var alphaR float64 = param.AlphaR
-		if param.Caution {
-			alphaR = CautionAlphaR(sumI/float64(param.N), alphaR)
-		}
-		if interventionInEffect {
-			alphaR = 0
-		}
 		for b := 0; b < BUCKETS; b++ {
 			communityInfections := S[b] * param.AlphaC * sumI * DT
 			// if interventionInEffect {
@@ -120,20 +107,24 @@ func RunDifEq(param Parameters) DifEqResults {
 			cInfectionsThisGen += communityInfections
 			rInfectionsThisGen += riskyInfections
 		}
-		RiskyInfectionsToReturn = append(RiskyInfectionsToReturn, rInfectionsThisGen/DT)
-		CommunityInfectionsToReturn = append(CommunityInfectionsToReturn, cInfectionsThisGen/DT)
-
+		saveData := int(currentTime/DT)%10 == 0
 		// Compute Rt
-		sumS := sum(S)
-		momentS := firstMoment(S, BUCKETS)
-		// alphaR is the version that possibly uses 'caution' and interventions
-		Rt := sumS * (param.AlphaC + alphaR*(momentI/sumI)*(momentS/sumS))
-		Rts = append(Rts, Rt)
-		EffectiveAlpha := (param.AlphaC + alphaR*(momentI/sumI)*(momentS/sumS))
-		EffectiveAlphas = append(EffectiveAlphas, EffectiveAlpha)
+		if saveData {
+			sumS := sum(S)
+			momentS := firstMoment(S, BUCKETS)
+			// alphaR is the version that possibly uses 'caution' and interventions
+			Rt := sumS * (param.AlphaC + alphaR*(momentI/sumI)*(momentS/sumS))
+			Rts = append(Rts, Rt)
 
-		IRisks = append(IRisks, (momentI / sumI))
-		SRisks = append(SRisks, (momentS / sumS))
+			EffectiveAlpha := (param.AlphaC + alphaR*(momentI/sumI)*(momentS/sumS))
+			EffectiveAlphas = append(EffectiveAlphas, EffectiveAlpha)
+
+			IRisks = append(IRisks, (momentI / sumI))
+			SRisks = append(SRisks, (momentS / sumS))
+			Is = append(Is, sumI)
+			Rs = append(Rs, sum(R))
+			Ts = append(Ts, currentTime)
+		}
 
 		for b := 0; b < BUCKETS; b++ {
 			S[b] -= newInfections[b]
@@ -144,16 +135,21 @@ func RunDifEq(param Parameters) DifEqResults {
 		currentTime += DT
 	}
 
-	return DifEqResults{
-		FinalR:              sum(R),
-		MaxI:                maxInfected,
-		Is:                  Is,
-		Rts:                 Rts,
-		EffectiveAlphas:     EffectiveAlphas,
-		RiskyInfections:     RiskyInfectionsToReturn,
-		IRisks:              IRisks,
-		SRisks:              SRisks,
-		CommunityInfections: CommunityInfectionsToReturn,
+	return RunSet{
+		Parameters: param,
+		Runs: []Run{
+			Run{
+				FinalR:          sum(R),
+				MaxI:            maxInfected,
+				Ts:              Ts,
+				Is:              Is,
+				Rs:              Rs,
+				Rts:             Rts,
+				EffectiveAlphas: EffectiveAlphas,
+				IRisks:          IRisks,
+				SRisks:          SRisks,
+			},
+		},
 	}
 }
 
@@ -166,10 +162,11 @@ func newInfectionsDifference(St, I0t, I1t, p, alphaC, alphaR float64) float64 {
 	return St * (1 - math.Pow((1-alphaC), I0t)*(1-p+p*math.Pow((1-alphaR), I1t)))
 }
 
-func RunDifference(param Parameters) DifferenceResults {
+func RunDifference(param Parameters) RunSet {
 
 	S, I, R := InitializePopulations(param)
 	Is := []float64{}
+	Rs := []float64{}
 
 	if param.DiseaseLength != 1.0 {
 		panic("disease length needs to be exactly 1.0 here")
@@ -179,6 +176,7 @@ func RunDifference(param Parameters) DifferenceResults {
 	for sumI := sum(I); sumI >= END_THRESHOLD; sumI = sum(I) {
 
 		Is = append(Is, sumI)
+		Rs = append(Rs, sum(R))
 		if sumI > maxInfected {
 			maxInfected = sumI
 		}
@@ -203,5 +201,15 @@ func RunDifference(param Parameters) DifferenceResults {
 		}
 	}
 
-	return DifferenceResults{FinalR: sum(R), MaxI: maxInfected, Is: Is}
+	return RunSet{
+		Parameters: param,
+		Runs: []Run{
+			Run{
+				FinalR: sum(R),
+				MaxI:   maxInfected,
+				Is:     Is,
+				Rs:     Rs,
+			},
+		},
+	}
 }

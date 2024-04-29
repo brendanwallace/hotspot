@@ -1,4 +1,4 @@
-module github.com/brendanwallace/riskySIR
+module github.com/brendanwallace/hotspot
 
 go 1.17
 

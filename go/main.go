@@ -7,56 +7,24 @@ import (
 	"log"
 	"time"
 
-	"github.com/brendanwallace/riskySIR/simulate"
+	"github.com/brendanwallace/hotspot/simulate"
 	"golang.org/x/exp/rand"
 )
 
-// Identical simulation run some number of times
-// This can contain some unused/optional fields
-type Result struct {
-	// Mu          float64
-	// Std         float64
-	// AlphaC      float64
-	// AlphaR      float64
-	// FinalRs     []int
-	// DifEqFinalR float64
-
-	Parameters        simulate.Parameters
-	DifEqResults      simulate.DifEqResults
-	DifferenceResults simulate.DifferenceResults
-	SimulationResults simulate.Results
-}
-
 const N = 1000
 const TRIALS = 1000
+const DISEASE_PERIOD int = 1
+const GAMMA float64 = 1.0 / float64(DISEASE_PERIOD)
+const RUN_TYPE simulate.RunType = "simulation"
 
 func main() {
-
-	var results [][]Result
-
-	// fmt.Println("\n100 0")
-
-	// results = extinction_results(1.0, 0.0)
-	// write(results, "extinction_results_100_0")
-
-	fmt.Println("\n75 25")
-
-	results = extinction_results(.75, .25)
-	write(results, "extinction_results_75_25")
-
-	fmt.Println("\n50 50")
-
-	results = extinction_results(.50, .50)
-	write(results, "extinction_results_50_50")
-
-	fmt.Println("\n25 75")
-
-	results = extinction_results(.25, .75)
-	write(results, "extinction_results_25_75")
-
+	title := fmt.Sprintf("%s,D=%d,T=%d", RUN_TYPE, DISEASE_PERIOD, TRIALS)
+	fmt.Printf(title)
+	var results = runR0Series(RUN_TYPE)
+	write(results, title)
 }
 
-func write(results [][]Result, filename string) {
+func write(results interface{}, filename string) {
 	fileName := fmt.Sprintf("%s.json", filename)
 
 	// Output to appropriately named file
@@ -71,69 +39,78 @@ func write(results [][]Result, filename string) {
 	}
 }
 
-// Spread contribution is set to 50/50
+func routeRun(runType simulate.RunType, param simulate.Parameters) simulate.RunSet {
+	switch runType {
+	case simulate.Simulation:
+		return simulate.RunSimulation(param)
+	case simulate.DifEq:
+		return simulate.RunDifEq(param)
+	case simulate.Difference:
+		return simulate.RunDifference(param)
+	default:
+		return simulate.RunSet{}
+	}
+}
+
 // Consider 9 different risk distributions
 // For each one, vary R0 from 0.0 -> 8.0
-func extinction_results(C float64, R float64) [][]Result {
+func runR0Series(runType simulate.RunType) []simulate.R0Series {
 
-	// vary R0 0 -> 8
+	// vary R0 0 -> EndR0
 
 	const EndR0 = 8.0
+	const R0Step = 0.1
 
 	rand.Seed(uint64(time.Now().UnixNano()))
-	params := simulate.Parameters{
-		AlphaC:        0,
-		AlphaR:        0,
-		DiseaseLength: 1,
-		N:             N,
-		Trials:        TRIALS,
-	}
 
-	results := [][]Result{}
+	hotspotFractions := []float64{0.0, 0.25, 0.5, 0.75}                                             // 0.0, 0.25, 0.5, 0.75
+	riskMeans := []float64{0.5, 0.25, 0.125}                                                        //0.5, 0.25, 0.125
+	riskVariances := []simulate.RiskVariance{simulate.LowVar, simulate.MediumVar, simulate.HighVar} //simulate.LowVar, simulate.MediumVar, simulate.HighVar
+	allSeries := []simulate.R0Series{}
 
-	for _, run := range []struct {
-		description string
-		a           float64
-		b           float64
-	}{
-		{"0.5 high", 0.1, 0.1},
-		{"0.5 medium", 1, 1},
-		{"0.5 low", 2, 2},
-		{"0.25 high", 0.1, 0.3},
-		{"0.25 medium", 1, 3},
-		{"0.25 low", 2, 6},
-		{"0.125 high", .1, 0.7},
-		{"0.125 medium", 1, 7},
-		{"0.125 low", 2, 14},
-	} {
-		resultName := fmt.Sprintf("%v", run.description)
-		fmt.Println("\nstarting series ", resultName)
+	for hsf, hotspotFraction := range hotspotFractions {
+		for rm, riskMean := range riskMeans {
+			for rv, riskVariance := range riskVariances {
+				series := simulate.R0Series{
+					RunType:         runType,
+					RiskMean:        riskMean,
+					RiskVariance:    riskVariance,
+					HotspotFraction: hotspotFraction,
+					RunSets:         make([]simulate.RunSet, 0),
+				}
 
-		series := []Result{}
+				for R0 := 0.0; R0 <= EndR0; R0 += R0Step {
 
-		params.RiskDist = &simulate.RiskDistribution{
-			A: run.a,
-			B: run.b,
+					fmt.Printf("\r hotspotfraction=%v/%v riskmean=%v/%v riskvar=%v/%v R0=%f",
+						hsf+1, len(hotspotFractions),
+						rm+1, len(riskMeans),
+						rv+1, len(riskVariances),
+						R0,
+					)
+
+					var alphaR float64
+					if riskMean == 0 {
+						alphaR = 0
+					} else {
+						alphaR = GAMMA * (R0 * hotspotFraction / riskMean / riskMean) / N
+					}
+
+					params := simulate.Parameters{
+						AlphaC:        GAMMA * (R0 * (1 - hotspotFraction)) / N,
+						AlphaR:        alphaR,
+						DiseaseLength: DISEASE_PERIOD,
+						N:             N,
+						R0:            R0,
+						Trials:        TRIALS,
+						RiskDist:      simulate.RiskDist(riskMean, riskVariance),
+					}
+
+					series.RunSets = append(series.RunSets, routeRun(runType, params))
+
+				}
+				allSeries = append(allSeries, series)
+			}
 		}
-
-		meanP := run.a / (run.a + run.b)
-		for R0 := 0.0; R0 <= EndR0; R0 += 0.1 {
-			fmt.Printf("\r%f/%f", R0, EndR0)
-
-			params.AlphaC = (R0 * C) / N
-			params.AlphaR = (R0 * R / meanP / meanP) / N
-			series = append(
-				series,
-				Result{
-					Parameters:        params,
-					DifEqResults:      simulate.RunDifEq(params),
-					DifferenceResults: simulate.RunDifference(params),
-					SimulationResults: simulate.RunSimulation(params)})
-
-		}
-		results = append(results, series)
-
 	}
-	return results
-
+	return allSeries
 }

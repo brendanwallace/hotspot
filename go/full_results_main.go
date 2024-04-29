@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/brendanwallace/riskySIR/simulate"
+	"github.com/brendanwallace/hotspot/simulate"
 	"golang.org/x/exp/rand"
 )
 

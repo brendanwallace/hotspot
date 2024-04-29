@@ -4,9 +4,6 @@
 
 ### go
 Contains source code for running the simulations.
-`./riskySIR`
-runs the simulation (defaults to 1000 times), outputs results to the
-data folder
 
 ### notebooks
 Jupyter notebooks for examining the results of the simulations

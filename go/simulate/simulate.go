@@ -2,7 +2,7 @@ package simulate
 
 import (
 	//"errors"
-	"fmt"
+
 	"time"
 
 	"golang.org/x/exp/rand"
@@ -10,6 +10,11 @@ import (
 )
 
 const INITIAL_INFECTED = 1
+
+// If EXTINCTION_SHORTCUT = true, then we should end the simulation
+// if R >= EXTINCTION_CUTOFF because we know we didn't go extinct.
+const EXTINCTION_CUTOFF = 50
+const EXTINCTION_SHORTCUT = false
 
 // Infection Status enum.
 type Status int
@@ -48,44 +53,14 @@ func initializePopulation(population []*Person, param Parameters) {
 	var alphaC func() float64 = func() float64 { return param.AlphaC }
 	var alphaR func() float64 = func() float64 { return param.AlphaR }
 
-	if param.RiskDist != nil { // All of these use a beta distribution
-
-		// TODO - consider the inverse of the CDF of beta distribution to sample
-		// deterministically rather than probabalistically.
-		// Probably not a big deal that we're seeding a new random source here -
-		// seems way better than plumbing a *rand.Source all the way through.
-		// Not sure what the downside would even be to making two rand.Source's.
-		beta := distuv.Beta{
-			Alpha: param.RiskDist.A,
-			Beta:  param.RiskDist.B,
-			Src:   rand.NewSource(uint64(time.Now().UnixNano())),
-		}
-
-		risky = func() float64 {
-			return beta.Rand()
-		}
+	beta := distuv.Beta{
+		Alpha: param.RiskDist.A,
+		Beta:  param.RiskDist.B,
+		Src:   rand.NewSource(uint64(time.Now().UnixNano())),
 	}
 
-	if param.AlphaDist != nil {
-		// we have fixed mu and sigma^2 we want but we need to compute parameters
-		// a(lpha) and b(eta) for the gamma distribution
-		// given a/b = mu and a/b^2 = sigma^2 we can solve for a and b:
-
-		mu, std := param.AlphaDist.Mu, param.AlphaDist.Std
-
-		a := mu * mu / (std * std)
-		b := mu / (std * std)
-		gamma := distuv.Gamma{
-			Alpha: a,
-			Beta:  b,
-			Src:   rand.NewSource(uint64(time.Now().UnixNano()))}
-
-		alphaC = func() float64 {
-			// g := gamma.Rand()
-			// fmt.Printf("%v\n", g)
-			// return g
-			return gamma.Rand() / float64(param.N)
-		}
+	risky = func() float64 {
+		return beta.Rand()
 	}
 
 	for p := range population {
@@ -100,7 +75,7 @@ func initializePopulation(population []*Person, param Parameters) {
 	}
 }
 
-// Disease spreads within a subpopulation (possibly the whole population though)
+// Disease spreads within a subpopulation (possibly the whole population)
 // with contact rate * disease spread rate of alpha.
 // Records any infection events into the appropriate Person struct.
 func spreadWithin(
@@ -124,16 +99,13 @@ func spreadWithin(
 	}
 }
 
-func RunSimulation(param Parameters) Results {
+func RunSimulation(param Parameters) RunSet {
 
 	// Saves the parameters used for this simulation along with the top level
 	// results we care about.
-	results := &Results{
+	runSet := RunSet{
 		Parameters: param,
-		FinalRs:    make([]int, param.Trials),
-		MaxIs:      make([]int, param.Trials),
-		// Is:         make([][]int, param.Trials),
-		SecondaryInfectionCounts: make([][]int, param.Trials),
+		Runs:       make([]Run, 0),
 	}
 
 	// Conduct param.Trials discrete trials of the epidemic
@@ -159,6 +131,19 @@ func RunSimulation(param Parameters) Results {
 			}
 			Is = append(Is, infected)
 
+			// Shortcut out if we only care about probability of extinction.
+			if EXTINCTION_SHORTCUT {
+				recovered := countStatus(population, RECOVERED)
+				if recovered+infected >= EXTINCTION_CUTOFF {
+					for p := range population {
+						if population[p].Status == INFECTED {
+							population[p].Status = RECOVERED
+						}
+					}
+					break
+				}
+			}
+
 			// risky behavioral spread
 			riskTakers := make([]*Person, 0)
 			for _, Person := range population {
@@ -177,44 +162,20 @@ func RunSimulation(param Parameters) Results {
 				if population[p].Status == INFECTED {
 					if population[p].daysInfected >= param.DiseaseLength {
 						population[p].Status = RECOVERED
+					} else {
+						population[p].daysInfected++
 					}
-					population[p].daysInfected++
-					// if rand.Float64() < param.Beta {
-					// 	population[p].Status = RECOVERED
-					// }
 				}
 			}
 		}
 
 		// The epidemic has run its course, so now we save the things we want
 		// to save.
-		results.FinalRs[i] = countStatus(population, RECOVERED)
-		results.MaxIs[i] = maxInfected
-		infectionCounts := []int{}
-		for _, person := range population {
-			if person.Status == RECOVERED {
-				infectionCounts = append(infectionCounts, person.SecondaryInfectionCount)
-			}
-		}
-		results.SecondaryInfectionCounts[i] = infectionCounts
-		// results.Is[i] = Is
+		runSet.Runs = append(runSet.Runs, Run{
+			FinalR: float64(countStatus(population, RECOVERED)),
+			MaxI:   float64(maxInfected),
+		})
 
 	}
-	// fmt.Printf("\r%v/%v\n", param.Trials, param.Trials)
-	return *results
-}
-
-func (param Parameters) FileDescriptionLong() string {
-	return fmt.Sprintf("T=%v,N=%v,ac=%v,ar=%v,dl=%v",
-		// param.A,
-		// param.B,
-		param.Trials,
-		param.N,
-		param.AlphaC,
-		param.AlphaR,
-		param.DiseaseLength)
-}
-
-func (param Parameters) FileDescriptionExtinction() string {
-	return fmt.Sprintf("extinction")
+	return runSet
 }

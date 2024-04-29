@@ -33,14 +33,28 @@ const (
 	HighVar   RiskVariance = "high"
 )
 
-// TODO -- function to convert from risk variance & mean to a and b.
+// function to convert from risk variance & mean to a and b.
+func RiskDist(riskMean float64, riskVariance RiskVariance) *RiskDistribution {
+	a := 1.0
+	b := (1 - riskMean) / riskMean
+	var factor float64
+	if riskVariance == LowVar {
+		factor = 2.0
+	} else if riskVariance == MediumVar {
+		factor = 1.0
+	} else if riskVariance == HighVar {
+		factor = 0.1
+	}
+	a, b = factor*a, factor*b
+	return &RiskDistribution{A: a, B: b}
+}
 
 // The parameters to carry out a set of runs.
 type Parameters struct {
 	// Model dynamics:
 	// Number of individuals:
 	N int
-	// cchance of being infected per contact:
+	// chance of being infected per contact:
 	AlphaC, AlphaR float64
 	// disease lasts for this long before the individual recovers:
 	DiseaseLength int
@@ -55,15 +69,13 @@ type Parameters struct {
 
 	// Number of identical simulations to run:
 	Trials int
-
-	// Stuff not really in use anymore:
-	Caution      bool
-	AlphaDist    *AlphaDistribution
-	Intervention *Intervention
 }
 
 func AlphaR(R0 float64, R0c float64, meanP float64, N float64) float64 {
 	AlphaR := (R0 - R0c) / meanP / meanP / N
+	if math.IsNaN(AlphaR) {
+		AlphaR = 0
+	}
 	return AlphaR
 }
 
@@ -79,19 +91,20 @@ func CautionAlphaR(infectedFraction float64, alphaR float64) float64 {
 // 3. max Is
 // 4. dynamics over time
 type Run struct {
-	RunType RunType
 	// always capture these:
 	FinalR float64
 	MaxI   float64
 
 	// these are optional:
-	Is                  []float64
-	Rts                 []float64
-	EffectiveAlphas     []float64
-	IRisks              []float64
-	SRisks              []float64
-	RiskyInfections     []float64
-	CommunityInfections []float64
+	Ts                  []float64 `json:",omitempty"`
+	Is                  []float64 `json:",omitempty"`
+	Rs                  []float64 `json:",omitempty"`
+	Rts                 []float64 `json:",omitempty"`
+	EffectiveAlphas     []float64 `json:",omitempty"`
+	IRisks              []float64 `json:",omitempty"`
+	SRisks              []float64 `json:",omitempty"`
+	RiskyInfections     []float64 `json:",omitempty"`
+	CommunityInfections []float64 `json:",omitempty"`
 }
 
 // One or multiple Runs with identical Parameters
@@ -102,8 +115,24 @@ type RunSet struct {
 
 // An R0 Series fixes a bunch of values and varies R0 systematically
 type R0Series struct {
-	RiskMean             float64
-	RiskVariance         RiskVariance
-	ProblemPlaceFraction float64
-	RunSets              []RunSet
+	RunType         RunType
+	RiskMean        float64
+	RiskVariance    RiskVariance
+	HotspotFraction float64
+	RunSets         []RunSet
 }
+
+// func (param Parameters) FileDescriptionLong() string {
+// 	return fmt.Sprintf("T=%v,N=%v,ac=%v,ar=%v,dl=%v",
+// 		// param.A,
+// 		// param.B,
+// 		param.Trials,
+// 		param.N,
+// 		param.AlphaC,
+// 		param.AlphaR,
+// 		param.DiseaseLength)
+// }
+
+// func (param Parameters) FileDescriptionExtinction() string {
+// 	return fmt.Sprintf("extinction")
+// }
