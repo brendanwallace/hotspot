@@ -3,16 +3,7 @@
 ## Contents:
 
 ### go
-Contains source code for running the simulations.
+Source code for running the models
 
-### notebooks
-Jupyter notebooks for examining the results of the simulations
-
-### background
-Pdfs of relevant background reading
-
-### proposal
-QSCI 497A proposal document
-
-### presentation
-QSCI 497A presentation outline and link
+### figures
+Jupyter notebooks and python files for generating the figures
