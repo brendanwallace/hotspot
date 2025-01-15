@@ -13,13 +13,13 @@ import (
 
 const N = 1000
 const TRIALS = 1000
-const DISEASE_PERIOD int = 1
+const DISEASE_PERIOD int = 2
 const GAMMA float64 = 1.0 / float64(DISEASE_PERIOD)
 const RUN_TYPE simulate.RunType = "simulation"
 
 func main() {
 	title := fmt.Sprintf("%s,D=%d,T=%d", RUN_TYPE, DISEASE_PERIOD, TRIALS)
-	fmt.Printf(title)
+	fmt.Println(title)
 	var results = runR0Series(RUN_TYPE)
 	write(results, title)
 }
