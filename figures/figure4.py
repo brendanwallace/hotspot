@@ -14,16 +14,35 @@ PLOT_HEIGHT = 1
 PLOT_WIDTH = 1
 LINEWIDTH = 1.5
 
+FIG4_COLORS = {
+    0.12: settings.BLUE,
+    0.25: settings.PURPLE,
+    0.5: settings.RED,
+}
 
-def plot_4(data, save_figs=settings.SAVE_FIGS):
+FIG4_TEXTURES = {
+    "low": settings.LINE_DASHES[0],
+    "medium": settings.LINE_DASHES[1],
+    "high": settings.LINE_DASHES[2],
+}
 
+
+def plot_4(data,
+    risk_tolerance_mean=0.25,
+    risk_tolerance_variance="high",
+    R0s = [1.2, 2.0, 3.0],
+
+    ):
+
+    color = FIG4_COLORS[risk_tolerance_mean]
+    texture = FIG4_TEXTURES[risk_tolerance_variance]
 
     Study = data[
-        (data["Risk tolerance mean"] == 0.25) &
-        (data["Risk tolerance variance"] == "high")]
+        (data["Risk tolerance mean"] == risk_tolerance_mean) &
+        (data["Risk tolerance variance"] == risk_tolerance_variance)]
 
 
-    Study = Study[(Study["R0"] == 1.2) | (Study["R0"] == 2.0) | (Study["R0"] == 3.0)]
+    Study = Study[Study["R0"].isin(R0s)]
     Study = Study[(Study["Hotspot fraction"] == 0.0) | (Study["Hotspot fraction"] == 0.5)]
 
 
@@ -46,19 +65,19 @@ def plot_4(data, save_figs=settings.SAVE_FIGS):
     g.map_dataframe(
         sns.lineplot, x="Ts", y="value", hue="Model type",
         estimator=None, n_boot=0, style="Model type",
-        dashes=[settings.LINE_DASHES[0], settings.LINE_DASHES[2]],
-        palette=[settings.HOMOGENEOUS_COLOR, settings.PURPLE],
+        dashes=[settings.LINE_DASHES[0], texture],
+        palette=[settings.HOMOGENEOUS_COLOR, color],
     )
 
     g.axes[0][0].set_ylabel("Rt")
     g.axes[1][0].set_ylabel("Infected")
     g.axes[2][0].set_ylabel("Recovered")
 
-    g.set(xlabel="Days")
+    g.set(xlabel="Time")
     #g.add_legend()
     #sns.move_legend(g, "upper right")
 
-    R0s =["1.2", "2.0", "3.0"]
+    #R0s =["1.2", "2.0", "3.0"]
     for i, ax in enumerate(g.axes[0]):
         ax.set_title("R0 = {}".format(R0s[i]))
     for ax in g.axes[1]:
@@ -73,7 +92,7 @@ def plot_4(data, save_figs=settings.SAVE_FIGS):
 
 
 
-    if settings.SAVE_FIGS:
-        g.savefig(settings.IMAGE_LOCATION + 'figure4.pdf', format='pdf', dpi=settings.DPI)
+    # if settings.SAVE_FIGS:
+    #     g.savefig(settings.IMAGE_LOCATION + 'figure4.pdf', format='pdf', dpi=settings.DPI)
     
     return g

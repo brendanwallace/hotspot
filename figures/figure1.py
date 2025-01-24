@@ -68,10 +68,12 @@ def plot_1_B():
     rel.axes[2][0].set_xlabel("")
     rel.axes[2][2].set_xlabel("")
 
-    #rel.figure.set_size_inches(3.5)
-    if settings.SAVE_FIGS:
-        rel.savefig(settings.IMAGE_LOCATION + "figure1_B.pdf", format='pdf', dpi=settings.DPI)
-    else:
-        plt.show()
+    return rel
+
+    # #rel.figure.set_size_inches(3.5)
+    # if settings.SAVE_FIGS:
+    #     rel.savefig(settings.IMAGE_LOCATION + "figure1_B.pdf", format='pdf', dpi=settings.DPI)
+    # else:
+    #     plt.show()
 
 #plot_1_B()

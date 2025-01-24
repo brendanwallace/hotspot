@@ -32,7 +32,7 @@ def base_plot(data, alpha=1.0):
     return rel
 
 
-def plot_2_A(data, save_figs=settings.SAVE_FIGS):
+def plot_2_A(data):
 
     #so.Plot().layout(size=(settings.FULL_WIDTH, settings.DEFAULT_HEIGHT))
     rp = base_plot(data, alpha=1.0)
@@ -47,8 +47,8 @@ def plot_2_A(data, save_figs=settings.SAVE_FIGS):
             legend=None,
         )
     #rp.figure.set_size_inches(settings.FULL_WIDTH, settings.HEIGHT)
-    if save_figs:
-        rp.savefig(settings.IMAGE_LOCATION + "figure2A.pdf", dpi=settings.DPI)
+    # if save_figs:
+    #     rp.savefig(settings.IMAGE_LOCATION + "figure2A.pdf", dpi=settings.DPI)
 
     return rp
 
@@ -57,7 +57,7 @@ def plot_2_A(data, save_figs=settings.SAVE_FIGS):
 
 
 
-def plot_2_B(data, save_figs=settings.SAVE_FIGS):
+def plot_2_B(data, theoretical_risk_means=[0.125, 0.25, 0.5]):
     #so.Plot().layout(size=(settings.FULL_WIDTH, settings.DEFAULT_HEIGHT))
     rp = base_plot(data, alpha=0.4)
 
@@ -75,17 +75,6 @@ def plot_2_B(data, save_figs=settings.SAVE_FIGS):
 
 
     for hs, hotspot in enumerate([0.25, 0.5, 0.75]):
-        
-        ## Adds the ABM homogeneous case
-        # sns.lineplot(
-        #     data=control,
-        #     y="Outbreak Probability",
-        #     x="R0",
-        #     color="black",
-        #     ax=rp.axes[0][hs],
-        #     legend=None,
-        #     alpha=0.4,
-        # )
 
         # Adds the theoretical line for homogeneous case
         sns.lineplot(
@@ -96,7 +85,7 @@ def plot_2_B(data, save_figs=settings.SAVE_FIGS):
             alpha=0.7,
             legend=None,
         )
-        for rm, risk_mean in enumerate([0.125, 0.25, 0.5]): 
+        for rm, risk_mean in enumerate(theoretical_risk_means): 
             Y = []
             for R0 in extinction.X:
                 beta_c = R0 / settings.N * (1-hotspot)
@@ -106,12 +95,12 @@ def plot_2_B(data, save_figs=settings.SAVE_FIGS):
                 x=extinction.X,
                 y=Y,
                 ax=rp.axes[0][hs],
-                color=settings.COLORS[rm],
+                color=(settings.COLORS)[rm],
                 legend=None,
             )
 
-    if save_figs:
-        rp.savefig(settings.IMAGE_LOCATION + "figure2B.pdf", dpi=settings.DPI)
+    # if save_figs:
+    #     rp.savefig(settings.IMAGE_LOCATION + "figure2B.pdf", dpi=settings.DPI)
 
     return rp
 
