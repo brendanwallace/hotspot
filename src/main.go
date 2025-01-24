@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
+	"runtime/pprof"
 	"time"
 
 	"github.com/brendanwallace/hotspot/simulate"
@@ -12,12 +14,26 @@ import (
 )
 
 const N = 1000
-const TRIALS = 1000
-const DISEASE_PERIOD int = 2
+const TRIALS = 10
+const DISEASE_PERIOD int = 1
 const GAMMA float64 = 1.0 / float64(DISEASE_PERIOD)
-const RUN_TYPE simulate.RunType = "simulation"
+const RUN_TYPE simulate.RunType = simulate.Simulation
+const DATA_LOCATION = "../data/"
+
+// Give read/write to user and read to all others.
+const DATA_FILE_PERMISSIONS = 0644
 
 func main() {
+	// Start profiling
+	f, err := os.Create("hotspot.prof")
+	if err != nil {
+		fmt.Println(err)
+		return
+
+	}
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
+
 	title := fmt.Sprintf("%s,D=%d,T=%d", RUN_TYPE, DISEASE_PERIOD, TRIALS)
 	fmt.Println(title)
 	var results = runR0Series(RUN_TYPE)
@@ -33,7 +49,7 @@ func write(results interface{}, filename string) {
 		log.Fatal(jsonErr)
 	}
 
-	writeFileErr := ioutil.WriteFile("data/"+fileName, file, 0644)
+	writeFileErr := ioutil.WriteFile(DATA_LOCATION+fileName, file, DATA_FILE_PERMISSIONS)
 	if writeFileErr != nil {
 		log.Fatal(writeFileErr)
 	}
@@ -63,9 +79,12 @@ func runR0Series(runType simulate.RunType) []simulate.R0Series {
 
 	rand.Seed(uint64(time.Now().UnixNano()))
 
-	hotspotFractions := []float64{0.0, 0.25, 0.5, 0.75}                                             // 0.0, 0.25, 0.5, 0.75
-	riskMeans := []float64{0.5, 0.25, 0.125}                                                        //0.5, 0.25, 0.125
-	riskVariances := []simulate.RiskVariance{simulate.LowVar, simulate.MediumVar, simulate.HighVar} //simulate.LowVar, simulate.MediumVar, simulate.HighVar
+	// These are typically [0.0, 0.25, 0.5, 0.75]
+	hotspotFractions := []float64{0.0, 0.25, 0.5, 0.75}
+	// For the main text, we show [0.5, 0.25, 0.125]. For the SI we show this wider range.
+	riskMeans := []float64{0.75, 0.5, 0.25, 0.125, 0.06, 0.03}
+	// simulate.LowVar, simulate.MediumVar, simulate.HighVar
+	riskVariances := []simulate.RiskVariance{simulate.LowVar, simulate.MediumVar, simulate.HighVar}
 	allSeries := []simulate.R0Series{}
 
 	for hsf, hotspotFraction := range hotspotFractions {

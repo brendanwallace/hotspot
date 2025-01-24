@@ -10,13 +10,13 @@ const N = 1000
 const initialInfecteds = INITIAL_INFECTEDS
 
 var defaultParameters Parameters = Parameters{
-	RiskDist:      &RiskDistribution{1, 1},
-	AlphaDist:     nil,
+	RiskDist: &RiskDistribution{1, 1},
+	// AlphaDist:     nil,
 	AlphaC:        0,
 	AlphaR:        0,
 	DiseaseLength: 1,
 	N:             N,
-	Trials:        0,
+	Trials:        1,
 }
 
 func TestRiskValue(t *testing.T) {
@@ -85,7 +85,7 @@ func TestRunCommunity(t *testing.T) {
 		{8.0, 999.6636},
 	} {
 		param.AlphaC = test.alphaC / N
-		results := RunDifEq(param)
+		results := RunDifEq(param).Runs[0]
 		if math.Abs(results.FinalR-test.want) > tol {
 			t.Fatalf("FinalR %v != %v; alphaC = %v", results.FinalR, test.want, test.alphaC)
 		}
@@ -105,7 +105,7 @@ func TestRunRisk(t *testing.T) {
 		{8.0, 999.6636},
 	} {
 		param.AlphaC = test.alphaC / N
-		results := RunDifEq(param)
+		results := RunDifEq(param).Runs[0]
 		if math.Abs(results.FinalR-test.want) > tol {
 			t.Fatalf("FinalR %v != %v; alphaC = %v", results.FinalR, test.want, test.alphaC)
 		}

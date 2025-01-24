@@ -95,6 +95,13 @@ type Run struct {
 	FinalR float64
 	MaxI   float64
 
+	// for PNASN review
+	// Duration from when infection hits 5% of the population going up to
+	// when it hits 5% of the population going down.
+	Duration float64
+	// Time until the infection hits its highest.
+	PeakTime float64
+
 	// these are optional:
 	Ts                  []float64 `json:",omitempty"`
 	Is                  []float64 `json:",omitempty"`

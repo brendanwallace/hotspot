@@ -114,7 +114,7 @@ func RunSimulation(param Parameters) RunSet {
 
 		// Set up the population for the trial.
 		var population []*Person = make([]*Person, param.N)
-		Is := []int{}
+		Is := []float64{}
 		initializePopulation(population, param)
 
 		// Infect initial people:
@@ -122,14 +122,21 @@ func RunSimulation(param Parameters) RunSet {
 			population[infect].Status = INFECTED
 		}
 
+		// Set up timing measurements
+		var time int = 0
+		var peakTime float64 = 0
+
 		// Time loop of the trial
 		// The simulation continues until no-one is infected.
-		maxInfected := -1
+		maxInfected := 0
 		for infected := 1; infected > 0; infected = countStatus(population, INFECTED) {
+			// measure peak number of infections & timing
 			if infected > maxInfected {
 				maxInfected = infected
+				peakTime = float64(time)
 			}
-			Is = append(Is, infected)
+
+			Is = append(Is, float64(infected))
 
 			// Shortcut out if we only care about probability of extinction.
 			if EXTINCTION_SHORTCUT {
@@ -167,13 +174,17 @@ func RunSimulation(param Parameters) RunSet {
 					}
 				}
 			}
+			time += 1
 		}
 
 		// The epidemic has run its course, so now we save the things we want
 		// to save.
 		runSet.Runs = append(runSet.Runs, Run{
-			FinalR: float64(countStatus(population, RECOVERED)),
-			MaxI:   float64(maxInfected),
+			FinalR:   float64(countStatus(population, RECOVERED)),
+			MaxI:     float64(maxInfected),
+			Duration: computeOutbreakDuration(Is, param),
+			PeakTime: peakTime,
+			// Is:       Is,
 		})
 
 	}

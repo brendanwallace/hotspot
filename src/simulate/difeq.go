@@ -148,6 +148,8 @@ func RunDifEq(param Parameters) RunSet {
 				EffectiveAlphas: EffectiveAlphas,
 				IRisks:          IRisks,
 				SRisks:          SRisks,
+				Duration:        computeOutbreakDuration(Is, param),
+				PeakTime:        computePeakTime(Is, param),
 			},
 		},
 	}
