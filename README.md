@@ -2,8 +2,8 @@
 
 ## Contents:
 
-### go
-Source code for running models
+### src
+Golang source code for running models
 
 ### figures
 Jupyter notebooks and python files for generating figures
