@@ -11,21 +11,17 @@ import matplotlib.pyplot as plt
 import util
 import settings
 
-#D8_DATA = "simulation,D=8,T=1000.json"
-#data = util.load_data(D8_DATA)
-
-def plot_3(data, show_timing=False, undiffed=False):
 
 	
+def plot_3(data, timing_values=[], undiffed=False, set_width=True):
+	"""
+	Timing values can be: {"Duration", or "Peak time"}
+	"""
+
 	
-	if undiffed:
-		row_values=['Extent', 'Peak size']
-		if show_timing:
-			row_values = row_values + ['Peak time', 'Duration']
-	else:
-		row_values=['Extent difference', 'Peak size difference']
-		if show_timing:
-			row_values = row_values + ['Peak time difference', 'Duration difference']
+	row_values=['Peak size', 'Extent'] + timing_values
+	if not undiffed:
+		row_values = [r + " difference" for r in row_values]
 
 
 	# only consider the ones with outbreaks
@@ -58,7 +54,7 @@ def plot_3(data, show_timing=False, undiffed=False):
 	    #aspect=1.0,
 	)
 
-	outcome_plot.figure.set_figwidth(settings.FULL_WIDTH)
+
 	#outcome_plot.figure.tight_layout()
 
 	for i, row_value in enumerate(row_values):
@@ -76,12 +72,8 @@ def plot_3(data, show_timing=False, undiffed=False):
 		for ax in outcome_plot.axes[i]:
 		    ax.set_title("")
 
+	if set_width:
+		util.set_width(outcome_plot)
 
-	util.set_width(outcome_plot)
-	    
-	#outcome_plot.fig
-	# if save_figs:
-	# 	outcome_plot.savefig(settings.IMAGE_LOCATION + 'figure3.pdf', format='pdf', dpi=settings.DPI)
-	
 	return outcome_plot
 

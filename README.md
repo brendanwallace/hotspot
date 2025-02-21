@@ -3,7 +3,7 @@
 ## Contents:
 
 ### go
-Source code for running the models
+Source code for running models
 
 ### figures
-Jupyter notebooks and python files for generating the figures
+Jupyter notebooks and python files for generating figures

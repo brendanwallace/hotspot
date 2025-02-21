@@ -55,7 +55,7 @@ type Parameters struct {
 	// Number of individuals:
 	N int
 	// chance of being infected per contact:
-	AlphaC, AlphaR float64
+	BetaC, BetaR float64
 	// disease lasts for this long before the individual recovers:
 	DiseaseLength int
 	// if not nil, contains information to construct riskyness distribution:
@@ -71,17 +71,17 @@ type Parameters struct {
 	Trials int
 }
 
-func AlphaR(R0 float64, R0c float64, meanP float64, N float64) float64 {
-	AlphaR := (R0 - R0c) / meanP / meanP / N
-	if math.IsNaN(AlphaR) {
-		AlphaR = 0
+func BetaR(R0 float64, R0c float64, meanP float64, N float64) float64 {
+	BetaR := (R0 - R0c) / meanP / meanP / N
+	if math.IsNaN(BetaR) {
+		BetaR = 0
 	}
-	return AlphaR
+	return BetaR
 }
 
-func CautionAlphaR(infectedFraction float64, alphaR float64) float64 {
-	return math.Max(0, (0.5-infectedFraction)*alphaR)
-}
+// func CautionBetaR(infectedFraction float64, betaR float64) float64 {
+// 	return math.Max(0, (0.5-infectedFraction)*betaR)
+// }
 
 // RESULTS
 
@@ -107,7 +107,7 @@ type Run struct {
 	Is                  []float64 `json:",omitempty"`
 	Rs                  []float64 `json:",omitempty"`
 	Rts                 []float64 `json:",omitempty"`
-	EffectiveAlphas     []float64 `json:",omitempty"`
+	EffectiveBetas      []float64 `json:",omitempty"`
 	IRisks              []float64 `json:",omitempty"`
 	SRisks              []float64 `json:",omitempty"`
 	RiskyInfections     []float64 `json:",omitempty"`
@@ -128,18 +128,3 @@ type R0Series struct {
 	HotspotFraction float64
 	RunSets         []RunSet
 }
-
-// func (param Parameters) FileDescriptionLong() string {
-// 	return fmt.Sprintf("T=%v,N=%v,ac=%v,ar=%v,dl=%v",
-// 		// param.A,
-// 		// param.B,
-// 		param.Trials,
-// 		param.N,
-// 		param.AlphaC,
-// 		param.AlphaR,
-// 		param.DiseaseLength)
-// }
-
-// func (param Parameters) FileDescriptionExtinction() string {
-// 	return fmt.Sprintf("extinction")
-// }

@@ -5,10 +5,8 @@ import matplotlib.pyplot as plt
 import util
 import settings
 
-#D8_DATA = "simulation,D=8,T=1000.json"
-#data = util.load_data(D8_DATA)
 
-def plot_S2(D1, D2, D4, D8, save_figs=settings.SAVE_FIGS):
+def plot_S2(D1, D2, D4, D8):
 
 
 	for data in [D1, D2, D4, D8]:
@@ -29,7 +27,5 @@ def plot_S2(D1, D2, D4, D8, save_figs=settings.SAVE_FIGS):
 		)
 
 		outcome_plot.figure.set_figwidth(settings.FULL_WIDTH)
-		#outcome_plot.figure.tight_layout()
 
-	#return outcome_plot
 

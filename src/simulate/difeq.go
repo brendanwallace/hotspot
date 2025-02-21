@@ -67,7 +67,7 @@ func RunDifEq(param Parameters) RunSet {
 	Is := []float64{}
 	Rs := []float64{}
 	Rts := []float64{}
-	EffectiveAlphas := []float64{}
+	EffectiveBetas := []float64{}
 	IRisks, SRisks := []float64{}, []float64{}
 
 	maxInfected := -1.0
@@ -92,9 +92,9 @@ func RunDifEq(param Parameters) RunSet {
 		momentI := firstMoment(I, BUCKETS)
 
 		// apply interventions like this:
-		var alphaR float64 = param.AlphaR
+		var alphaR float64 = param.BetaR
 		for b := 0; b < BUCKETS; b++ {
-			communityInfections := S[b] * param.AlphaC * sumI * DT
+			communityInfections := S[b] * param.BetaC * sumI * DT
 			// if interventionInEffect {
 			// 	communityInfections *= (1.0 / 2.0)
 			// }
@@ -113,11 +113,11 @@ func RunDifEq(param Parameters) RunSet {
 			sumS := sum(S)
 			momentS := firstMoment(S, BUCKETS)
 			// alphaR is the version that possibly uses 'caution' and interventions
-			Rt := sumS * (param.AlphaC + alphaR*(momentI/sumI)*(momentS/sumS))
+			Rt := sumS * (param.BetaC + alphaR*(momentI/sumI)*(momentS/sumS))
 			Rts = append(Rts, Rt)
 
-			EffectiveAlpha := (param.AlphaC + alphaR*(momentI/sumI)*(momentS/sumS))
-			EffectiveAlphas = append(EffectiveAlphas, EffectiveAlpha)
+			EffectiveBeta := (param.BetaC + alphaR*(momentI/sumI)*(momentS/sumS))
+			EffectiveBetas = append(EffectiveBetas, EffectiveBeta)
 
 			IRisks = append(IRisks, (momentI / sumI))
 			SRisks = append(SRisks, (momentS / sumS))
@@ -139,17 +139,17 @@ func RunDifEq(param Parameters) RunSet {
 		Parameters: param,
 		Runs: []Run{
 			Run{
-				FinalR:          sum(R),
-				MaxI:            maxInfected,
-				Ts:              Ts,
-				Is:              Is,
-				Rs:              Rs,
-				Rts:             Rts,
-				EffectiveAlphas: EffectiveAlphas,
-				IRisks:          IRisks,
-				SRisks:          SRisks,
-				Duration:        computeOutbreakDuration(Is, param),
-				PeakTime:        computePeakTime(Is, param),
+				FinalR:         sum(R),
+				MaxI:           maxInfected,
+				Ts:             Ts,
+				Is:             Is,
+				Rs:             Rs,
+				Rts:            Rts,
+				EffectiveBetas: EffectiveBetas,
+				IRisks:         IRisks,
+				SRisks:         SRisks,
+				Duration:       computeOutbreakDuration(Is, param),
+				PeakTime:       computePeakTime(Is, param),
 			},
 		},
 	}
@@ -191,9 +191,9 @@ func RunDifference(param Parameters) RunSet {
 		for b := 0; b < BUCKETS; b++ {
 			risk := riskValue(b, BUCKETS)
 
-			newInfections[b] = newInfectionsDifference(S[b], sumI, momentI, risk, param.AlphaC, param.AlphaR)
-			// newInfections[b] = (S[b] * math.Pow((1-param.AlphaC), sumI) *
-			// 	(1 - risk + risk*math.Pow((1-param.AlphaR), momentI)))
+			newInfections[b] = newInfectionsDifference(S[b], sumI, momentI, risk, param.BetaC, param.BetaR)
+			// newInfections[b] = (S[b] * math.Pow((1-param.BetaC), sumI) *
+			// 	(1 - risk + risk*math.Pow((1-param.BetaR), momentI)))
 		}
 
 		for b := 0; b < BUCKETS; b++ {

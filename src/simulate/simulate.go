@@ -2,11 +2,11 @@ package simulate
 
 import (
 	//"errors"
-
-	"time"
-
-	"golang.org/x/exp/rand"
+	randv1 "golang.org/x/exp/rand"
 	"gonum.org/v1/gonum/stat/distuv"
+	"math"
+	"math/rand/v2"
+	"time"
 )
 
 const INITIAL_INFECTED = 1
@@ -14,7 +14,7 @@ const INITIAL_INFECTED = 1
 // If EXTINCTION_SHORTCUT = true, then we should end the simulation
 // if R >= EXTINCTION_CUTOFF because we know we didn't go extinct.
 const EXTINCTION_CUTOFF = 50
-const EXTINCTION_SHORTCUT = false
+const EXTINCTION_SHORTCUT = true
 
 // Infection Status enum.
 type Status int
@@ -28,13 +28,9 @@ const (
 // Agent class for the simulation. Each of these represents a Person
 // in the population, who can be S, I or R.
 type Person struct {
-	Status       Status
-	daysInfected int
-	Riskyness    float64
-	AlphaC       float64
-	AlphaR       float64
-
-	SecondaryInfectionCount int
+	Status        Status
+	daysInfected  int
+	RiskTolerance float64
 }
 
 func countStatus(population []*Person, status Status) int {
@@ -48,52 +44,43 @@ func countStatus(population []*Person, status Status) int {
 }
 
 func initializePopulation(population []*Person, param Parameters) {
-	// Defaults that can get overwritten:
-	var risky func() float64 = func() float64 { return 0 }
-	var alphaC func() float64 = func() float64 { return param.AlphaC }
-	var alphaR func() float64 = func() float64 { return param.AlphaR }
 
 	beta := distuv.Beta{
 		Alpha: param.RiskDist.A,
 		Beta:  param.RiskDist.B,
-		Src:   rand.NewSource(uint64(time.Now().UnixNano())),
-	}
-
-	risky = func() float64 {
-		return beta.Rand()
+		Src:   randv1.NewSource(uint64(time.Now().UnixNano())),
 	}
 
 	for p := range population {
 		population[p] = &Person{
-			Status:                  SUSCEPTIBLE,
-			daysInfected:            0,
-			Riskyness:               risky(),
-			AlphaC:                  alphaC(),
-			AlphaR:                  alphaR(),
-			SecondaryInfectionCount: 0,
+			Status:        SUSCEPTIBLE,
+			daysInfected:  0,
+			RiskTolerance: beta.Rand(),
 		}
 	}
 }
 
+// The probability of getting infected when making numContacts contacts, if
+// the infection rate per contact is beta.
+func infectionProbability(beta float64, numContacts float64) float64 {
+	return 1 - math.Pow(1.0-beta, numContacts)
+}
+
 // Disease spreads within a subpopulation (possibly the whole population)
-// with contact rate * disease spread rate of alpha.
-// Records any infection events into the appropriate Person struct.
-func spreadWithin(
-	population []*Person, isRisky bool) {
-	for p, person := range population {
+// with contact rate * disease spread rate of beta.
+func spreadWithin(population []*Person, beta float64) {
+	var numInfected float64 = 0
+	for _, person := range population {
 		if person.Status == INFECTED && person.daysInfected > 0 {
-			for o, other := range population {
-				if (o != p) && (other.Status == SUSCEPTIBLE) {
-					alpha := person.AlphaC
-					if isRisky {
-						alpha = person.AlphaR
-					}
-					if rand.Float64() < alpha {
-						population[o].Status = INFECTED
-						population[p].SecondaryInfectionCount =
-							population[p].SecondaryInfectionCount + 1
-					}
-				}
+			numInfected += 1
+		}
+	}
+
+	var infectionProbability float64 = infectionProbability(beta, numInfected)
+	for o, other := range population {
+		if other.Status == SUSCEPTIBLE {
+			if rand.Float64() < infectionProbability {
+				population[o].Status = INFECTED
 			}
 		}
 	}
@@ -154,15 +141,15 @@ func RunSimulation(param Parameters) RunSet {
 			// risky behavioral spread
 			riskTakers := make([]*Person, 0)
 			for _, Person := range population {
-				if rand.Float64() < Person.Riskyness {
+				if rand.Float64() < Person.RiskTolerance {
 					riskTakers = append(riskTakers, Person)
 				}
 			}
 
-			spreadWithin(riskTakers, true)
+			spreadWithin(riskTakers, param.BetaR)
 
 			// community spread
-			spreadWithin(population, false)
+			spreadWithin(population, param.BetaC)
 
 			// recovery
 			for p := range population {

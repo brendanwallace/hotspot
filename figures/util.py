@@ -23,7 +23,7 @@ COLUMN_NAMES = {
 }
 
 
-def load_data(filename, drop_control=True, risk_means=None):
+def load_data(filename, drop_control=True, risk_means=None, D=1):
 
     with open(DATA_LOCATION + filename) as file:
             json_file = json.load(file, parse_float=lambda f: round(float(f), 3))
@@ -38,13 +38,13 @@ def load_data(filename, drop_control=True, risk_means=None):
             ["RunSets", "Parameters", "R0"],
             ["RunSets", "Parameters", "RunType"]
         ],
-    ), drop_control, risk_means)
+    ), drop_control, risk_means, D)
 
     return data
 
 
 # Process data
-def process(data, drop_control, risk_means):
+def process(data, drop_control, risk_means, D):
 
     if risk_means is not None:
         data = data[data["RiskMean"].isin(risk_means)]
@@ -56,6 +56,10 @@ def process(data, drop_control, risk_means):
     def tile(column):
         num_ppf = len(data["HotspotFraction"].unique())
         return pd.Series(np.tile(data[data["HotspotFraction"] == 0][column], num_ppf))
+
+    for column_to_normalize in ["PeakTime", "Duration"]:
+        data[column_to_normalize] = data[column_to_normalize] / D
+
 
     # Add a <value>Diff column, which is <value> minus <value> in the homogeneous case.
     # This is used for figure 3.

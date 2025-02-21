@@ -43,7 +43,6 @@ def plot_1_B():
     distributions["mean"] = pd.Categorical(distributions["RiskMean"])
             
 
-    #sns.set_context("paper")
     rel = sns.relplot(
                 data=distributions,
                 kind="line",
@@ -70,10 +69,3 @@ def plot_1_B():
 
     return rel
 
-    # #rel.figure.set_size_inches(3.5)
-    # if settings.SAVE_FIGS:
-    #     rel.savefig(settings.IMAGE_LOCATION + "figure1_B.pdf", format='pdf', dpi=settings.DPI)
-    # else:
-    #     plt.show()
-
-#plot_1_B()

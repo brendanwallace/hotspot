@@ -14,28 +14,34 @@ import (
 )
 
 const N = 1000
-const TRIALS = 10
+const TRIALS = 1000
 const DISEASE_PERIOD int = 1
 const GAMMA float64 = 1.0 / float64(DISEASE_PERIOD)
 const RUN_TYPE simulate.RunType = simulate.Simulation
 const DATA_LOCATION = "../data/"
+
+const PROFILE = false
 
 // Give read/write to user and read to all others.
 const DATA_FILE_PERMISSIONS = 0644
 
 func main() {
 	// Start profiling
-	f, err := os.Create("hotspot.prof")
-	if err != nil {
-		fmt.Println(err)
-		return
+	if PROFILE {
+		f, err := os.Create("hotspot.prof")
+		if err != nil {
+			fmt.Println(err)
+			return
 
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
 	}
-	pprof.StartCPUProfile(f)
-	defer pprof.StopCPUProfile()
 
-	title := fmt.Sprintf("%s,D=%d,T=%d", RUN_TYPE, DISEASE_PERIOD, TRIALS)
+	title := "low-extinction"
+	// title := fmt.Sprintf("%s,D=%d,T=%d", RUN_TYPE, DISEASE_PERIOD, TRIALS)
 	fmt.Println(title)
+	// results := parametersOnly()
 	var results = runR0Series(RUN_TYPE)
 	write(results, title)
 }
@@ -74,15 +80,17 @@ func runR0Series(runType simulate.RunType) []simulate.R0Series {
 
 	// vary R0 0 -> EndR0
 
-	const EndR0 = 8.0
-	const R0Step = 0.1
+	const EndR0 = 1.0
+	const R0Step = 0.01
 
 	rand.Seed(uint64(time.Now().UnixNano()))
 
 	// These are typically [0.0, 0.25, 0.5, 0.75]
 	hotspotFractions := []float64{0.0, 0.25, 0.5, 0.75}
 	// For the main text, we show [0.5, 0.25, 0.125]. For the SI we show this wider range.
-	riskMeans := []float64{0.75, 0.5, 0.25, 0.125, 0.06, 0.03}
+	// riskMeans := []float64{0.75, 0.5, 0.25, 0.125, 0.06, 0.03}
+	riskMeans := []float64{0.5, 0.25, 0.125}
+
 	// simulate.LowVar, simulate.MediumVar, simulate.HighVar
 	riskVariances := []simulate.RiskVariance{simulate.LowVar, simulate.MediumVar, simulate.HighVar}
 	allSeries := []simulate.R0Series{}
@@ -107,16 +115,16 @@ func runR0Series(runType simulate.RunType) []simulate.R0Series {
 						R0,
 					)
 
-					var alphaR float64
+					var betaR float64
 					if riskMean == 0 {
-						alphaR = 0
+						betaR = 0
 					} else {
-						alphaR = GAMMA * (R0 * hotspotFraction / riskMean / riskMean) / N
+						betaR = GAMMA * (R0 * hotspotFraction / riskMean / riskMean) / N
 					}
 
 					params := simulate.Parameters{
-						AlphaC:        GAMMA * (R0 * (1 - hotspotFraction)) / N,
-						AlphaR:        alphaR,
+						BetaC:         GAMMA * (R0 * (1 - hotspotFraction)) / N,
+						BetaR:         betaR,
 						DiseaseLength: DISEASE_PERIOD,
 						N:             N,
 						R0:            R0,

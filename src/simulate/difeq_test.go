@@ -11,9 +11,9 @@ const initialInfecteds = INITIAL_INFECTEDS
 
 var defaultParameters Parameters = Parameters{
 	RiskDist: &RiskDistribution{1, 1},
-	// AlphaDist:     nil,
-	AlphaC:        0,
-	AlphaR:        0,
+	// BetaDist:     nil,
+	BetaC:         0,
+	BetaR:         0,
 	DiseaseLength: 1,
 	N:             N,
 	Trials:        1,
@@ -77,17 +77,17 @@ func TestRunCommunity(t *testing.T) {
 	param := defaultParameters
 
 	for _, test := range []struct {
-		alphaC float64
-		want   float64
+		betaC float64
+		want  float64
 	}{
 		{0.0, initialInfecteds},
 		// {2.0, 796.8121},
 		{8.0, 999.6636},
 	} {
-		param.AlphaC = test.alphaC / N
+		param.BetaC = test.betaC / N
 		results := RunDifEq(param).Runs[0]
 		if math.Abs(results.FinalR-test.want) > tol {
-			t.Fatalf("FinalR %v != %v; alphaC = %v", results.FinalR, test.want, test.alphaC)
+			t.Fatalf("FinalR %v != %v; betaC = %v", results.FinalR, test.want, test.betaC)
 		}
 	}
 }
@@ -97,17 +97,17 @@ func TestRunRisk(t *testing.T) {
 	param := defaultParameters
 
 	for _, test := range []struct {
-		alphaC float64
-		want   float64
+		betaC float64
+		want  float64
 	}{
 		{0.0, initialInfecteds},
 		// {2.0, 796.8121},
 		{8.0, 999.6636},
 	} {
-		param.AlphaC = test.alphaC / N
+		param.BetaC = test.betaC / N
 		results := RunDifEq(param).Runs[0]
 		if math.Abs(results.FinalR-test.want) > tol {
-			t.Fatalf("FinalR %v != %v; alphaC = %v", results.FinalR, test.want, test.alphaC)
+			t.Fatalf("FinalR %v != %v; betaC = %v", results.FinalR, test.want, test.betaC)
 		}
 	}
 }
@@ -120,7 +120,7 @@ func TestNewInfectionsDifference(t *testing.T) {
 		I0t    float64
 		I1t    float64
 		p      float64
-		alphaC float64
+		betaC  float64
 		alphaR float64
 
 		want float64
@@ -130,7 +130,7 @@ func TestNewInfectionsDifference(t *testing.T) {
 		{1000, 1, 1, 1, 0.0, 0.002, 2},
 		{1000, 1, 1, 1, 1.0, 0, 1000},
 	} {
-		result := newInfectionsDifference(test.St, test.I0t, test.I1t, test.p, test.alphaC, test.alphaR)
+		result := newInfectionsDifference(test.St, test.I0t, test.I1t, test.p, test.betaC, test.alphaR)
 		if math.Abs(result-test.want) > tol {
 			t.Fatalf("newInfectionsDifference(%v) = %v; want %v)", test, result, test.want)
 		}

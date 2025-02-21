@@ -8,11 +8,8 @@ import util
 import extinction
 import settings
 
-#D1_SIMULATION = "simulation,D=1,T=1000.json"
-#data = util.load_data(D1_SIMULATION)
 
-
-def base_plot(data, alpha=1.0):
+def base_plot(data, alpha=1.0,):
     rel = sns.relplot(
         data=data[data["R0"] <= settings.R0_END],
         kind="line",
@@ -46,13 +43,8 @@ def plot_2_A(data):
             alpha=0.7,
             legend=None,
         )
-    #rp.figure.set_size_inches(settings.FULL_WIDTH, settings.HEIGHT)
-    # if save_figs:
-    #     rp.savefig(settings.IMAGE_LOCATION + "figure2A.pdf", dpi=settings.DPI)
-
     return rp
 
-#plot_2_A(data)
         
 
 
@@ -60,18 +52,6 @@ def plot_2_A(data):
 def plot_2_B(data, theoretical_risk_means=[0.125, 0.25, 0.5]):
     #so.Plot().layout(size=(settings.FULL_WIDTH, settings.DEFAULT_HEIGHT))
     rp = base_plot(data, alpha=0.4)
-
-    # # add the homogeneous ABM case
-    # for ax in rp.axes[0]:
-    #     sns.lineplot(
-    #         data=control,
-    #         y="Extinction Probability",
-    #         x="R0",
-    #         color="black",
-    #         ax=ax,
-    #         legend=None,
-    #         alpha=0.4,
-    #     )
 
 
     for hs, hotspot in enumerate([0.25, 0.5, 0.75]):
@@ -99,11 +79,4 @@ def plot_2_B(data, theoretical_risk_means=[0.125, 0.25, 0.5]):
                 legend=None,
             )
 
-    # if save_figs:
-    #     rp.savefig(settings.IMAGE_LOCATION + "figure2B.pdf", dpi=settings.DPI)
-
     return rp
-
-
-#plot_2_A(data)
-#plot_2_B(data)

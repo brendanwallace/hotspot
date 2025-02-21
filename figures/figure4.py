@@ -6,16 +6,13 @@ import numpy as np
 import util
 import settings
 
-# DIFEQ_DATA = "difeq,D=1,T=1.json"
-# data = util.load_data(DIFEQ_DATA, drop_control=False)
-
 
 PLOT_HEIGHT = 1
 PLOT_WIDTH = 1
 LINEWIDTH = 1.5
 
 FIG4_COLORS = {
-    0.12: settings.BLUE,
+    0.125: settings.BLUE,
     0.25: settings.PURPLE,
     0.5: settings.RED,
 }
@@ -30,7 +27,7 @@ FIG4_TEXTURES = {
 def plot_4(data,
     risk_tolerance_mean=0.25,
     risk_tolerance_variance="high",
-    R0s = [1.2, 2.0, 3.0],
+    R0s = [1.25, 2.0, 3.0],
 
     ):
 
@@ -47,6 +44,8 @@ def plot_4(data,
 
 
     Study = Study.explode(["Ts", "Is", "Rs", "Rts"])
+
+
     mask = Study["Hotspot fraction"] == 0.5
     Study["Model type"] = pd.Categorical(np.where(mask, "Hotspot", "Homogeneous"))
 
@@ -74,10 +73,7 @@ def plot_4(data,
     g.axes[2][0].set_ylabel("Recovered")
 
     g.set(xlabel="Time")
-    #g.add_legend()
-    #sns.move_legend(g, "upper right")
 
-    #R0s =["1.2", "2.0", "3.0"]
     for i, ax in enumerate(g.axes[0]):
         ax.set_title("R0 = {}".format(R0s[i]))
     for ax in g.axes[1]:
@@ -92,7 +88,4 @@ def plot_4(data,
 
 
 
-    # if settings.SAVE_FIGS:
-    #     g.savefig(settings.IMAGE_LOCATION + 'figure4.pdf', format='pdf', dpi=settings.DPI)
-    
     return g
