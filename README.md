@@ -1,5 +1,7 @@
 # Heterogeneous Risk Taking in SIR dynamics
 
+This repo contains the code to run simulations for the paper,
+
 _Hotspot model shows how location-based superspreading accelerates and reshapes epidemics. Wallace, B., Dimitrov, D., Hébert-Dufresne, L., Berdahl, A._. 
 
 ## Contents
