@@ -38,10 +38,8 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	title := "low-extinction"
-	// title := fmt.Sprintf("%s,D=%d,T=%d", RUN_TYPE, DISEASE_PERIOD, TRIALS)
+	title := fmt.Sprintf("%s,D=%d,T=%d", RUN_TYPE, DISEASE_PERIOD, TRIALS)
 	fmt.Println(title)
-	// results := parametersOnly()
 	var results = runR0Series(RUN_TYPE)
 	write(results, title)
 }
