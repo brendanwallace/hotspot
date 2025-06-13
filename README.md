@@ -2,7 +2,7 @@
 
 This repo contains the code to run simulations for the paper,
 
-_Hotspot model shows how location-based superspreading accelerates and reshapes epidemics. Wallace, B., Dimitrov, D., Hébert-Dufresne, L., Berdahl, A._. 
+_Hotspot model shows how location-based superspreading accelerates and reshapes epidemics. Wallace, B., Dimitrov, D., Hébert-Dufresne, L., Berdahl, A._. (In review, PNAS Nexus) 
 
 ## Contents
 
